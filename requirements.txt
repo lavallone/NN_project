@@ -9,4 +9,4 @@ prettytable
 mxnet==1.6.0
 torch-summary
 Opencv-python
-torch==1.7.1
+torch==1.10.0
