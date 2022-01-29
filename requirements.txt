@@ -8,5 +8,5 @@ menpo
 prettytable
 mxnet==1.6.0
 torch-summary
-cv2
+Opencv-python
 torch==1.7.1
