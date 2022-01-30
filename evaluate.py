@@ -35,4 +35,3 @@ if __name__ == "__main__":
                 backbone.load_state_dict(torch.load(os.path.join(output_folder,w)))
                 model = torch.nn.DataParallel(backbone, device_ids=[gpu_id])
                 callback_verification(int(w.split("backbone")[0]),backbone)
-

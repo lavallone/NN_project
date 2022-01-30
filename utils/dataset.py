@@ -198,4 +198,3 @@ class MXFaceDataset(Dataset):
         rgbimg = np.stack((red, green, blue))
         rgbimg = np.moveaxis(rgbimg, 0, 2)
         return rgbimg
-        

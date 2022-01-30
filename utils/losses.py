@@ -9,9 +9,7 @@ import numpy as np
 def l2_norm(input, axis = 1):
     norm = torch.norm(input, 2, axis, True)
     output = torch.div(input, norm)
-
     return output
-
 
 
 class ArcFace(nn.Module):
@@ -115,4 +113,3 @@ class ElasticMaskedArcFace(nn.Module):
         cos_theta[index] += m_hot
         cos_theta.cos_().mul_(self.s)
         return cos_theta
-

@@ -50,10 +50,10 @@ The mask template used to create the synthetic masked data for training and eval
 The colors for the synthetic masks on the benchmark can be downloaded [here](https://drive.google.com/drive/folders/1bW48uHfemK21vzy9eOsCuvvg9iT9RbPt?usp=sharing), they have to be placed in the /eval/ directory.
 
 ### Model Training ###
- 1. Download pretrained ElasitcFace model [ElasticFace-Arc Model](https://github.com/fdbtrs/ElasticFace) and copy it to the output folder
+ 1. Download pretrained ElasticFace model [ElasticFace-Arc Model](https://github.com/fdbtrs/ElasticFace) and copy it to the output folder
  2. Download MS1MV2 dataset from [insightface](https://github.com/deepinsight/insightface/tree/master/recognition/_datasets_) on strictly follow the licence distribution
  3. Set the config.rec in config/configKD.py to the dataset path
- 4. Intall the requirement from requirement.txt: pip install -r requirements.txt
+ 4. Install the requirement from requirement.txt: pip install -r requirements.txt
  5. run train_kd.py 
 ### Pretrained Models ###
 All evaluated pre-trained models are available:
