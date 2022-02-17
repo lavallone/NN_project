@@ -4,7 +4,6 @@ from torch import nn
 __all__ = ['iresnet18', 'iresnet34', 'iresnet50', 'iresnet100']
 
 
-
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=dilation, groups=groups, bias=False, dilation=dilation)
@@ -12,6 +11,7 @@ def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):
 def conv1x1(in_planes, out_planes, stride=1):
     """1x1 convolution"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
+
 
 class SEModule(nn.Module):
     def __init__(self, channels, reduction):
@@ -33,6 +33,7 @@ class SEModule(nn.Module):
         return input * x
 
 class IBasicBlock(nn.Module):
+
     expansion = 1
     def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1, base_width=64, dilation=1, use_se=False):
         super(IBasicBlock, self).__init__()
@@ -68,6 +69,7 @@ class IBasicBlock(nn.Module):
         return out
 
 class IResNet(nn.Module):
+    
     fc_scale = 7 * 7
     def __init__(self, block, layers, dropout=0, num_features=512, zero_init_residual=False, 
                  groups=1, width_per_group=64, replace_stride_with_dilation=None, fp16=False):

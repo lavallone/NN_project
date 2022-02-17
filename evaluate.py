@@ -13,8 +13,6 @@ from utils.utils_logging import init_logging
 sys.path.append('/root/xy/work_dir/xyface/')
 from config import config as cfg
 
-
-
 if __name__ == "__main__":
     
     load_color = True

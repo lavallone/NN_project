@@ -17,16 +17,16 @@ from utils.dataset import MXFaceDataset, DataLoaderX
 from utils.utils_callbacks import CallBackVerification, CallBackLoggingKD, CallBackModelCheckpointKD
 from utils.utils_logging import AverageMeter, init_logging
 
-from backbones.iresnet import iresnet100
+from backbones.iresnet import iresnet100 # è l'architettura che ci serve
 
 torch.backends.cudnn.benchmark = True
 
 def main(args):
     dist.init_process_group(backend='nccl', init_method='env://')
-    local_rank = args.local_rank
+    local_rank = args.local_rank # "rank is a unique identifier assigned to each process within a distributed process group"
     torch.cuda.set_device(local_rank)
     rank = dist.get_rank()
-    world_size = dist.get_world_size()
+    world_size = dist.get_world_size() # number of process 
 
 
     if not os.path.exists(cfg.output) and rank == 0:
@@ -39,8 +39,7 @@ def main(args):
 
     trainset = MXFaceDataset(root_dir=cfg.rec, local_rank=local_rank)
 
-    train_sampler = torch.utils.data.distributed.DistributedSampler(
-        trainset, shuffle=True)
+    train_sampler = torch.utils.data.distributed.DistributedSampler(trainset, shuffle=True)
 
     train_loader = DataLoaderX(
         local_rank=local_rank, dataset=trainset, batch_size=cfg.batch_size,

@@ -38,12 +38,9 @@ def main(args):
 
     trainset = MXFaceDataset(root_dir=cfg.rec, local_rank=local_rank)
 
-    train_sampler = torch.utils.data.distributed.DistributedSampler(
-        trainset, shuffle=True)
+    train_sampler = torch.utils.data.distributed.DistributedSampler(trainset, shuffle=True)
 
-    train_loader = DataLoaderX(
-        local_rank=local_rank, dataset=trainset, batch_size=cfg.batch_size,
-        sampler=train_sampler, num_workers=32, pin_memory=True, drop_last=True)
+    train_loader = DataLoaderX(local_rank=local_rank, dataset=trainset, batch_size=cfg.batch_size, sampler=train_sampler, num_workers=32, pin_memory=True, drop_last=True)
 
     # load teacher model
     backbone_teacher = iresnet100(num_features=cfg.embedding_size).to(local_rank)
@@ -57,7 +54,7 @@ def main(args):
         logging.info("load teacher backbone init, failed!")
 
     # load student model
-    backbone_student = iresnet100(num_features=cfg.embedding_size).to(local_rank)
+    backbone_student = iresnet100(num_features=cfg.embedding_size).to(local_rank) # da capire meglio cosa fa questo metodo della classe torch.nn.Module
 
     if args.pretrained_student:
         try:
@@ -82,15 +79,13 @@ def main(args):
     #for ps in backbone_teacher.parameters():
     #    dist.broadcast(ps, 0)
 
-    for ps in backbone_student.parameters():
+    for ps in backbone_student.parameters(): # ?
         dist.broadcast(ps, 0)
 
-    backbone_teacher = DistributedDataParallel(
-        module=backbone_teacher, broadcast_buffers=False, device_ids=[local_rank])
+    backbone_teacher = DistributedDataParallel( module=backbone_teacher, broadcast_buffers=False, device_ids=[local_rank] )
     backbone_teacher.eval()
 
-    backbone_student = DistributedDataParallel(
-        module=backbone_student, broadcast_buffers=False, device_ids=[local_rank])
+    backbone_student = DistributedDataParallel( module=backbone_student, broadcast_buffers=False, device_ids=[local_rank] )
     backbone_student.train()
 
     # get header
