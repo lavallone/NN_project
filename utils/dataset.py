@@ -4,20 +4,14 @@ import queue as Queue
 import threading
 import random
 
+import torch
 import cv2
-
 import mxnet as mx
 import numpy as np
-import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-landmarks = np.array([[30.2946, 51.6963],
-                      [65.5318, 51.5014],
-                      [48.0252, 71.7366],
-                      [33.5493, 92.3655],
-                      [62.7299, 92.2041]
-                      ], dtype=np.float32 )
+landmarks = np.array([[30.2946, 51.6963],[65.5318, 51.5014],[48.0252, 71.7366],[33.5493, 92.3655],[62.7299, 92.2041]], dtype=np.float32 )
 
 
 class BackgroundGenerator(threading.Thread):
@@ -78,17 +72,13 @@ class DataLoaderX(DataLoader):
         return batch
 
 
-class MXFaceDataset(Dataset):
+class MXFaceDataset(Dataset): # la superclasse è Dataset, implementata grazie a pytorch
     def __init__(self, root_dir, local_rank):
         super(MXFaceDataset, self).__init__()
-        self.transform = transforms.Compose(
-            [transforms.ToPILImage(),
-             transforms.RandomHorizontalFlip(),
-             transforms.ToTensor(),
-             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-             ])
+        self.transform = transforms.Compose([transforms.ToPILImage(),transforms.RandomHorizontalFlip(),transforms.ToTensor(),transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),])
         self.root_dir = root_dir
         self.local_rank = local_rank
+        ################# QUI DEVO CAPIRE COME CARICA I DATASET ####################
         path_imgrec = os.path.join(root_dir, 'train.rec')
         path_imgidx = os.path.join(root_dir, 'train.idx')
         self.imgrec = mx.recordio.MXIndexedRecordIO(path_imgidx, path_imgrec, 'r')
@@ -99,10 +89,10 @@ class MXFaceDataset(Dataset):
             self.imgidx = np.array(range(1, int(header.label[0])))
         else:
             self.imgidx = np.array(list(self.imgrec.keys))
-            
+        ################# -------------------------------------- ###################
         self.mask_img = cv2.imread("mask_img.png", cv2.IMREAD_UNCHANGED)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index): # Dataset è una sorta di mappa. Quindi per accedere al singolo sample bisogna accederci tramite le chiavi (index)
         idx = self.imgidx[index]
         s = self.imgrec.read_idx(idx)
         header, img = mx.recordio.unpack(s)
@@ -123,7 +113,7 @@ class MXFaceDataset(Dataset):
                 sample = self.transform(sample)
             return sample,sample,label
     
-    def mask_images(self,img):
+    def mask_images(self, img):
         
         # get landmarks
         nose = (landmarks[2][0], landmarks[2][1])
@@ -156,13 +146,7 @@ class MXFaceDataset(Dataset):
         M, _ = cv2.findHomography(src_pts, dst_pts)
     
         # transform the mask to a mask which fits to the image
-        transformed_mask = cv2.warpPerspective(
-                         self.mask_img,
-                         M,
-                         (img.shape[1], img.shape[0]),
-                         None,
-                         cv2.INTER_LINEAR,
-                         cv2.BORDER_CONSTANT)
+        transformed_mask = cv2.warpPerspective(self.mask_img,M,(img.shape[1], img.shape[0]), None, cv2.INTER_LINEAR, cv2.BORDER_CONSTANT)
  
         # overlay the image with the fitting mask
         alpha_mask = transformed_mask[:, :, 3] / 255
@@ -181,9 +165,6 @@ class MXFaceDataset(Dataset):
 
         return img
 
-    def __len__(self):
-        return len(self.imgidx)
-
     def cymk_to_rgb(self, img):
         cyan = img[:,:,0] 
         magenta = img[:,:,1] 
@@ -198,3 +179,6 @@ class MXFaceDataset(Dataset):
         rgbimg = np.stack((red, green, blue))
         rgbimg = np.moveaxis(rgbimg, 0, 2)
         return rgbimg
+
+    def __len__(self): # lunghezza del dataset
+        return len(self.imgidx)

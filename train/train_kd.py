@@ -4,9 +4,9 @@ import os
 import time
 
 import torch
-import torch.distributed as dist
+import torch.distributed as dist # per fare del training distribuito --> capire se usufruirne o semplicemente fare un training su una sola macchina.
 import torch.nn.functional as F
-from torch.nn.parallel.distributed import DistributedDataParallel
+from torch.nn.parallel.distributed import DistributedDataParallel # DataParallel can be used on a single machine with multithreading
 import torch.utils.data.distributed
 from torch.nn.utils import clip_grad_norm_
 from torch.nn import CrossEntropyLoss, MSELoss
@@ -16,7 +16,6 @@ from config import config as cfg
 from utils.dataset import MXFaceDataset, DataLoaderX
 from utils.utils_callbacks import CallBackVerification, CallBackLoggingKD, CallBackModelCheckpointKD
 from utils.utils_logging import AverageMeter, init_logging
-
 from backbones.iresnet import iresnet100
 
 torch.backends.cudnn.benchmark = True
@@ -24,19 +23,20 @@ torch.backends.cudnn.benchmark = True
 def main(args):
     dist.init_process_group(backend='nccl', init_method='env://')
     local_rank = args.local_rank
-    torch.cuda.set_device(local_rank)
+    torch.cuda.set_device(local_rank) # gli diciamo su qule GPU dobbiamo lavorare (dovremmo averne solo una disponibile)
     rank = dist.get_rank()
-    world_size = dist.get_world_size()
+    world_size = dist.get_world_size() # number of processes participating in the job.
 
     if not os.path.exists(cfg.output) and rank == 0:
         os.makedirs(cfg.output)
     else:
         time.sleep(2)
 
+    # LOGGING STUFF
     log_root = logging.getLogger()
     init_logging(log_root, rank, cfg.output)
 
-    trainset = MXFaceDataset(root_dir=cfg.rec, local_rank=local_rank)
+    trainset = MXFaceDataset(root_dir=cfg.rec, local_rank=local_rank) # gli dico in che cartella si trova il dataset e su quale rank stiamo lavorando.
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(trainset, shuffle=True)
 
@@ -54,7 +54,7 @@ def main(args):
         logging.info("load teacher backbone init, failed!")
 
     # load student model
-    backbone_student = iresnet100(num_features=cfg.embedding_size).to(local_rank) # da capire meglio cosa fa questo metodo della classe torch.nn.Module
+    backbone_student = iresnet100(num_features=cfg.embedding_size).to(local_rank) # salviamo la rete neurale nella GPU o device identificata/o da "local_rank"
 
     if args.pretrained_student:
         try:
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     parser.add_argument('--network_student', type=str, default="iresnet100", help="backbone of student network")
     parser.add_argument('--network_teacher', type=str, default="iresnet100", help="backbone of teacher network")
     parser.add_argument('--loss', type=str, default="ElasticArcFace", help="loss function")
-    parser.add_argument('--pretrained_student', type=int, default=0, help="use pretrained student model for KD")
-    parser.add_argument('--resume', type=int, default=1, help="resume training")
+    parser.add_argument('--pretrained_student', type=int, default=0, help="use pretrained student model for KD") # decidere se usare una rete PRETRAINED per lo student o no 
+    parser.add_argument('--resume', type=int, default=1, help="resume training")                                 # oppure NO
     args_ = parser.parse_args()
     main(args_)

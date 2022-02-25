@@ -68,8 +68,8 @@ class IBasicBlock(nn.Module):
         out += identity
         return out
 
-class IResNet(nn.Module):
-    
+class IResNet(nn.Module): # tutte le neural networks derivano dalla classe principale nn.Module !
+
     fc_scale = 7 * 7
     def __init__(self, block, layers, dropout=0, num_features=512, zero_init_residual=False, 
                  groups=1, width_per_group=64, replace_stride_with_dilation=None, fp16=False):
