@@ -37,30 +37,25 @@ def main(args):
     init_logging(log_root, rank, cfg.output)
 
     trainset = MXFaceDataset(root_dir=cfg.rec, local_rank=local_rank) # gli dico in che cartella si trova il dataset e su quale rank stiamo lavorando.
-
-    train_sampler = torch.utils.data.distributed.DistributedSampler(trainset, shuffle=True)
-
+    train_sampler = torch.utils.data.distributed.DistributedSampler(trainset, shuffle=True) 
     train_loader = DataLoaderX(local_rank=local_rank, dataset=trainset, batch_size=cfg.batch_size, sampler=train_sampler, num_workers=32, pin_memory=True, drop_last=True)
 
-    # load teacher model
+    ###### LOAD TEACHER MODEL ######
     backbone_teacher = iresnet100(num_features=cfg.embedding_size).to(local_rank)
     try:
         backbone_teacher_pth = os.path.join(cfg.teacher_pth, str(cfg.teacher_global_step) + "backbone.pth")
-        backbone_teacher.load_state_dict(torch.load(backbone_teacher_pth, map_location=torch.device(local_rank)))
-
+        backbone_teacher.load_state_dict(torch.load(backbone_teacher_pth, map_location=torch.device(local_rank))) # carichiamo il modello sulla GPU
         if rank == 0:
             logging.info("backbone teacher loaded successfully!")
     except (FileNotFoundError, KeyError, IndexError, RuntimeError):
         logging.info("load teacher backbone init, failed!")
 
-    # load student model
+    ###### LOAD STUDENT MODEL ######
     backbone_student = iresnet100(num_features=cfg.embedding_size).to(local_rank) # salviamo la rete neurale nella GPU o device identificata/o da "local_rank"
-
     if args.pretrained_student:
         try:
             backbone_student_pth = os.path.join(cfg.student_pth, str(cfg.student_global_step) + "backbone.pth")
             backbone_student.load_state_dict(torch.load(backbone_student_pth, map_location=torch.device(local_rank)))
-
             if rank == 0:
                 logging.info("backbone student loaded successfully!")
         except (FileNotFoundError, KeyError, IndexError, RuntimeError):
@@ -70,7 +65,6 @@ def main(args):
         try:
             backbone_student_pth = os.path.join(cfg.output, str(cfg.global_step) + "backbone.pth")
             backbone_student.load_state_dict(torch.load(backbone_student_pth, map_location=torch.device(local_rank)))
-
             if rank == 0:
                 logging.info("backbone student resume loaded successfully!")
         except (FileNotFoundError, KeyError, IndexError, RuntimeError):
@@ -79,7 +73,7 @@ def main(args):
     #for ps in backbone_teacher.parameters():
     #    dist.broadcast(ps, 0)
 
-    for ps in backbone_student.parameters(): # ?
+    for ps in backbone_student.parameters(): # per rendere disponibile il modello a tutti i processi convolti nella computazione (lo leverò)
         dist.broadcast(ps, 0)
 
     backbone_teacher = DistributedDataParallel( module=backbone_teacher, broadcast_buffers=False, device_ids=[local_rank] )
@@ -92,7 +86,7 @@ def main(args):
     if args.loss == "ArcFace":
         header = losses.ArcFace(in_features=cfg.embedding_size, out_features=cfg.num_classes, s=cfg.s, m=cfg.m).to(local_rank)
     elif args.loss == "ElasticArcFace":
-       header = losses.ElasticArcFace(in_features=cfg.embedding_size, out_features=cfg.num_classes, s=cfg.s, m=cfg.margin).to(local_rank)
+        header = losses.ElasticArcFace(in_features=cfg.embedding_size, out_features=cfg.num_classes, s=cfg.s, m=cfg.margin).to(local_rank)
     #elif args.loss == "Softmax":
     #    header = losses.ArcFace(in_features=cfg.embedding_size, out_features=cfg.num_classes, s=64.0, m=0).to(local_rank)
     else:
@@ -108,31 +102,24 @@ def main(args):
         except (FileNotFoundError, KeyError, IndexError, RuntimeError):
             logging.info("header resume init, failed!")
     
-    header = DistributedDataParallel(
-        module=header, broadcast_buffers=False, device_ids=[local_rank])
+    header = DistributedDataParallel(module=header, broadcast_buffers=False, device_ids=[local_rank])
     header.train()
 
-    opt_backbone_student = torch.optim.SGD(
-        params=[{'params': backbone_student.parameters()}],
-        lr=cfg.lr / 512 * cfg.batch_size * world_size,
-        momentum=0.9, weight_decay=cfg.weight_decay)
-    opt_header = torch.optim.SGD(
-        params=[{'params': header.parameters()}],
-        lr=cfg.lr / 512 * cfg.batch_size * world_size,
-        momentum=0.9, weight_decay=cfg.weight_decay)
-
-    scheduler_backbone_student = torch.optim.lr_scheduler.LambdaLR(
-        optimizer=opt_backbone_student, lr_lambda=cfg.lr_func)
-    scheduler_header = torch.optim.lr_scheduler.LambdaLR(
-        optimizer=opt_header, lr_lambda=cfg.lr_func)        
+    # OPTIMIZER
+    opt_backbone_student = torch.optim.SGD( params=[{'params': backbone_student.parameters()}], lr=cfg.lr / 512 * cfg.batch_size * world_size, momentum=0.9, weight_decay=cfg.weight_decay)
+    opt_header = torch.optim.SGD( params=[{'params': header.parameters()}], lr=cfg.lr / 512 * cfg.batch_size * world_size, momentum=0.9, weight_decay=cfg.weight_decay)
+    # LR_SCHEDULER
+    scheduler_backbone_student = torch.optim.lr_scheduler.LambdaLR(optimizer=opt_backbone_student, lr_lambda=cfg.lr_func)
+    scheduler_header = torch.optim.lr_scheduler.LambdaLR(optimizer=opt_header, lr_lambda=cfg.lr_func)        
 
     criterion = CrossEntropyLoss()
-    
     criterion2 = MSELoss()
 
+    # TRAINING phase
     start_epoch = 0
     total_step = int(len(trainset) / cfg.batch_size / world_size * cfg.num_epoch)
-    if rank == 0: logging.info("Total Step is: %d" % total_step)
+    if rank == 0: 
+        logging.info("Total Step is: %d" % total_step)
 
     if args.resume:
         rem_steps = (total_step - cfg.global_step)
@@ -166,7 +153,6 @@ def main(args):
             global_step += 1
             img = img.cuda(local_rank, non_blocking=True)
             masked_img = masked_img.cuda(local_rank, non_blocking=True)
-
             label = label.cuda(local_rank, non_blocking=True)
 
             with torch.no_grad():

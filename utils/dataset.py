@@ -6,7 +6,7 @@ import random
 
 import torch
 import cv2
-import mxnet as mx
+import mxnet as mx # deep learning method framework by Apache
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
@@ -75,21 +75,21 @@ class DataLoaderX(DataLoader):
 class MXFaceDataset(Dataset): # la superclasse è Dataset, implementata grazie a pytorch
     def __init__(self, root_dir, local_rank):
         super(MXFaceDataset, self).__init__()
-        self.transform = transforms.Compose([transforms.ToPILImage(),transforms.RandomHorizontalFlip(),transforms.ToTensor(),transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),])
+        self.transform = transforms.Compose([transforms.ToPILImage(),transforms.RandomHorizontalFlip(),transforms.ToTensor(),transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),]) # we apply this chain of transformations to our dataset
         self.root_dir = root_dir
         self.local_rank = local_rank
-        ################# QUI DEVO CAPIRE COME CARICA I DATASET ####################
+        ################# Here we upload the dataset ####################
         path_imgrec = os.path.join(root_dir, 'train.rec')
         path_imgidx = os.path.join(root_dir, 'train.idx')
         self.imgrec = mx.recordio.MXIndexedRecordIO(path_imgidx, path_imgrec, 'r')
-        s = self.imgrec.read_idx(0)
+        s = self.imgrec.read_idx(0) # return the "record" at index 0 --> in our case is (maybe) the size of our dataset
         header, _ = mx.recordio.unpack(s)
         if header.flag > 0:
             self.header0 = (int(header.label[0]), int(header.label[1]))
             self.imgidx = np.array(range(1, int(header.label[0])))
         else:
             self.imgidx = np.array(list(self.imgrec.keys))
-        ################# -------------------------------------- ###################
+        ################# -------------------------- ###################
         self.mask_img = cv2.imread("mask_img.png", cv2.IMREAD_UNCHANGED)
 
     def __getitem__(self, index): # Dataset è una sorta di mappa. Quindi per accedere al singolo sample bisogna accederci tramite le chiavi (index)
@@ -100,18 +100,20 @@ class MXFaceDataset(Dataset): # la superclasse è Dataset, implementata grazie a
         if not isinstance(label, numbers.Number):
             label = label[0]
         label = torch.tensor(label, dtype=torch.long)
-        sample = mx.image.imdecode(img).asnumpy()
+        sample = mx.image.imdecode(img).asnumpy() # we have one image of our dataset in the form of a Numpy vector
+
         prob=random.uniform(0, 1)
-        if (prob<0.5):
+        if (prob<0.5): # con probabilità p, applichiamo la mascherina alle immagini
             masked_sample=self.mask_images(sample)
             if self.transform is not None:
-             sample = self.transform(sample)
-             masked_sample=self.transform(masked_sample)
-            return masked_sample,sample, label
+                sample = self.transform(sample)
+                masked_sample=self.transform(masked_sample)
+            return masked_sample, sample, label 
         else:
             if self.transform is not None:
                 sample = self.transform(sample)
-            return sample,sample,label
+            return sample, sample,label
+        # viene restituita una coppia di immagini (Mask-NoMask / NoMask-NoMask) e il label a cui appartengono (la persona che rappresenta l'immagine)
     
     def mask_images(self, img):
         
