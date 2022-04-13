@@ -1,6 +1,6 @@
 from easydict import EasyDict as edict
 
-config = edict() # creiamo un file di configurazione sootoforma di dizionario
+config = edict() # creiamo un file di configurazione sottoforma di dizionario
 
 config.dataset = "emore"  # MS1MV2
 config.embedding_size = 512

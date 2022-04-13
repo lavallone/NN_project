@@ -1,3 +1,7 @@
+"""
+With the brakpoints I'll indicate parts of the software that uses parallel computation components.
+"""
+
 import argparse
 import logging
 import os
@@ -18,7 +22,7 @@ from utils.utils_callbacks import CallBackVerification, CallBackLoggingKD, CallB
 from utils.utils_logging import AverageMeter, init_logging
 from backbones.iresnet import iresnet100
 
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = True 
 
 def main(args):
     dist.init_process_group(backend='nccl', init_method='env://')
