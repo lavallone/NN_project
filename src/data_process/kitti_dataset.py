@@ -58,7 +58,7 @@ class KittiDataset(Dataset):
         else:
             self.sample_id_list = self.remove_invalid_idx(self.image_idx_list)
 
-        if num_samples is not None:
+        if num_samples is not None: # num_samples serve solo per selezionare una porzione del dataset per fare debug!
             self.sample_id_list = self.sample_id_list[:num_samples]
         self.num_samples = len(self.sample_id_list)
 
@@ -66,7 +66,7 @@ class KittiDataset(Dataset):
         if self.is_test:
             return self.load_img_only(index)
         else:
-            if self.mosaic:
+            if self.mosaic: # per adesso ignora, poi approfondisci 
                 img_files, rgb_map, targets = self.load_mosaic(index)
 
                 return img_files[0], rgb_map, targets
@@ -118,7 +118,7 @@ class KittiDataset(Dataset):
         if self.aug_transforms is not None:
             rgb_map, targets = self.aug_transforms(rgb_map, targets)
 
-        return img_file, rgb_map, targets
+        return img_file, rgb_map, targets # è questo quello che estraiamo dal dataset ogni volta che il DataLoader preleva un "sample"
 
     def load_mosaic(self, index):
         """loads images in a mosaic
@@ -240,7 +240,7 @@ class KittiDataset(Dataset):
     def get_lidar(self, idx):
         lidar_file = os.path.join(self.lidar_dir, '{:06d}.bin'.format(idx))
         # assert os.path.isfile(lidar_file)
-        return np.fromfile(lidar_file, dtype=np.float32).reshape(-1, 4)
+        return np.fromfile(lidar_file, dtype=np.float32).reshape(-1, 4) # we turn the binary file into a numpy array of 4 "columns"
 
     def get_calib(self, idx):
         calib_file = os.path.join(self.calib_dir, '{:06d}.txt'.format(idx))
@@ -250,4 +250,4 @@ class KittiDataset(Dataset):
     def get_label(self, idx):
         label_file = os.path.join(self.label_dir, '{:06d}.txt'.format(idx))
         # assert os.path.isfile(label_file)
-        return kitti_data_utils.read_label(label_file)
+        return kitti_data_utils.read_label(label_file) # it returns 3d Objects

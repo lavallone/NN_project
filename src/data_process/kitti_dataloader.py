@@ -24,22 +24,20 @@ def create_train_dataloader(configs):
 
     train_lidar_transforms = OneOf([Random_Rotation(limit_angle=20., p=1.0), Random_Scaling(scaling_range=(0.95, 1.05), p=1.0)], p=0.66)
 
-    train_aug_transforms = Compose([
-        Horizontal_Flip(p=configs.hflip_prob),
-        Cutout(n_holes=configs.cutout_nholes, ratio=configs.cutout_ratio, fill_value=configs.cutout_fill_value,
-               p=configs.cutout_prob)
-    ], p=1.)
+    train_aug_transforms = Compose([Horizontal_Flip(p=configs.hflip_prob),
+                                    Cutout(n_holes=configs.cutout_nholes, ratio=configs.cutout_ratio, fill_value=configs.cutout_fill_value, p=configs.cutout_prob)
+                                   ], p=1.)
 
     train_dataset = KittiDataset(configs.dataset_dir, mode='train', lidar_transforms=train_lidar_transforms,
                                  aug_transforms=train_aug_transforms, multiscale=configs.multiscale_training,
                                  num_samples=configs.num_samples, mosaic=configs.mosaic,
                                  random_padding=configs.random_padding)
-    train_sampler = None
+    train_sampler = None # il sampler credo serva per la distribuzione parallela
     if configs.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_dataloader = DataLoader(train_dataset, batch_size=configs.batch_size, shuffle=(train_sampler is None),
                                   pin_memory=configs.pin_memory, num_workers=configs.num_workers, sampler=train_sampler,
-                                  collate_fn=train_dataset.collate_fn)
+                                  collate_fn=train_dataset.collate_fn) # try to play with the num_workers parameter --> the CPU has 16 cores!!!
 
     return train_dataloader, train_sampler
 

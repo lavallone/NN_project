@@ -37,19 +37,19 @@ def main():
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
 
-    if configs.gpu_idx is not None:
+    if configs.gpu_idx is not None: # è quello che vogliamo fare
         print('You have chosen a specific GPU. This will completely disable data parallelism.')
 
     if configs.dist_url == "env://" and configs.world_size == -1:
         configs.world_size = int(os.environ["WORLD_SIZE"])
 
-    configs.distributed = configs.world_size > 1 or configs.multiprocessing_distributed
+    configs.distributed = configs.world_size > 1 or configs.multiprocessing_distributed # è False
 
     if configs.multiprocessing_distributed:
         configs.world_size = configs.ngpus_per_node * configs.world_size
         mp.spawn(main_worker, nprocs=configs.ngpus_per_node, args=(configs,))
     else:
-        main_worker(configs.gpu_idx, configs)
+        main_worker(configs.gpu_idx, configs) # fa tutto questa funzione
 
 
 def main_worker(gpu_idx, configs):
@@ -71,29 +71,28 @@ def main_worker(gpu_idx, configs):
         configs.subdivisions = int(64 / configs.batch_size)
         print(configs.subdivisions)
 
-    configs.is_master_node = (not configs.distributed) or (configs.distributed and (configs.rank % configs.ngpus_per_node == 0))
-
+    configs.is_master_node = (not configs.distributed) or (configs.distributed and (configs.rank % configs.ngpus_per_node == 0)) # è True
     if configs.is_master_node:
         logger = Logger(configs.logs_dir, configs.saved_fn)
         logger.info('>>> Created a new logger')
         logger.info('>>> configs: {}'.format(configs)) # stampiamo a schermo tutti i parametri di configurazione
-        tb_writer = SummaryWriter(log_dir=os.path.join(configs.logs_dir, 'tensorboard'))
+        tb_writer = SummaryWriter(log_dir=os.path.join(configs.logs_dir, 'tensorboard')) # per tensorboard
     else:
         logger = None
         tb_writer = None
 
     # model
-    model = create_model(configs)
+    model = create_model(configs) # la rete è stata instanziata
     logger.info('>>> Model instantiated')
 
-    # load weight from a checkpoint
+    # LOAD weight from a checkpoint
     if configs.pretrained_path is not None:
         assert os.path.isfile(configs.pretrained_path), "=> no checkpoint found at '{}'".format(configs.pretrained_path)
         model.load_state_dict(torch.load(configs.pretrained_path))
         if logger is not None:
             logger.info('loaded pretrained model at {}'.format(configs.pretrained_path))
 
-    # resume weights of model from a checkpoint
+    # RESUME weights of model from a checkpoint
     if configs.resume_path is not None:
         assert os.path.isfile(configs.resume_path), "=> no checkpoint found at '{}'".format(configs.resume_path)
         model.load_state_dict(torch.load(configs.resume_path))
@@ -101,7 +100,7 @@ def main_worker(gpu_idx, configs):
             logger.info('resume training model from checkpoint {}'.format(configs.resume_path))
 
     # Data Parallel
-    model = make_data_parallel(model, configs)
+    model = make_data_parallel(model, configs) # carichiamo il modello sulla GPU
 
     # Make sure to create optimizer after moving the model to cuda
     optimizer = create_optimizer(configs, model)
@@ -109,7 +108,7 @@ def main_worker(gpu_idx, configs):
     configs.step_lr_in_epoch = True if configs.lr_type in ['multi_step'] else False
 
     # resume optimizer, lr_scheduler from a checkpoint
-    if configs.resume_path is not None:
+    if configs.resume_path is not None: # da capire come usare con il "resume_path"
         utils_path = configs.resume_path.replace('Model_', 'Utils_')
         assert os.path.isfile(utils_path), "=> no checkpoint found at '{}'".format(utils_path)
         utils_state_dict = torch.load(utils_path, map_location='cuda:{}'.format(configs.gpu_idx))
@@ -117,7 +116,7 @@ def main_worker(gpu_idx, configs):
         lr_scheduler.load_state_dict(utils_state_dict['lr_scheduler'])
         configs.start_epoch = utils_state_dict['epoch'] + 1
 
-    if configs.is_master_node:
+    if configs.is_master_node: # sempre vero nel nostro caso
         num_parameters = get_num_parameters(model)
         logger.info('number of trained parameters of the model: {}'.format(num_parameters))
 
@@ -128,11 +127,10 @@ def main_worker(gpu_idx, configs):
     if logger is not None:
         logger.info('number of batches in training set: {}'.format(len(train_dataloader)))
 
-    if configs.evaluate:
-        val_dataloader = create_val_dataloader(configs)
+    if configs.evaluate: # vedrò successivamente come utilizzare il validation set
+        val_dataloader = create_val_dataloader(configs) 
         precision, recall, AP, f1, ap_class = evaluate_mAP(val_dataloader, model, configs, None)
-        print('Evaluate - precision: {}, recall: {}, AP: {}, f1: {}, ap_class: {}'.format(precision, recall, AP, f1,
-                                                                                          ap_class))
+        print('Evaluate - precision: {}, recall: {}, AP: {}, f1: {}, ap_class: {}'.format(precision, recall, AP, f1, ap_class))
         print('mAP {}'.format(AP.mean()))
         return
     
@@ -146,8 +144,10 @@ def main_worker(gpu_idx, configs):
 
         if configs.distributed:
             train_sampler.set_epoch(epoch)
-        # train for one epoch
+            
+        # TRAIN FOR ONE EPOCH
         train_one_epoch(train_dataloader, model, optimizer, lr_scheduler, epoch, configs, logger, tb_writer)
+        
         if not configs.no_val:
             val_dataloader = create_val_dataloader(configs)
             print('number of batches in val_dataloader: {}'.format(len(val_dataloader)))
@@ -187,24 +187,24 @@ def train_one_epoch(train_dataloader, model, optimizer, lr_scheduler, epoch, con
     data_time = AverageMeter('Data', ':6.3f')
     losses = AverageMeter('Loss', ':.4e')
 
-    progress = ProgressMeter(len(train_dataloader), [batch_time, data_time, losses],
-                             prefix="Train - Epoch: [{}/{}]".format(epoch, configs.num_epochs))
+    progress = ProgressMeter(len(train_dataloader), [batch_time, data_time, losses], prefix="Train - Epoch: [{}/{}]".format(epoch, configs.num_epochs))
 
-    num_iters_per_epoch = len(train_dataloader)
+    num_iters_per_epoch = len(train_dataloader) # |D| / batch_size
 
     # switch to train mode
     model.train()
+    
     start_time = time.time()
     for batch_idx, batch_data in enumerate(tqdm(train_dataloader)):
         data_time.update(time.time() - start_time)
-        _, imgs, targets = batch_data
-        global_step = num_iters_per_epoch * (epoch - 1) + batch_idx + 1
+        _, imgs, targets = batch_data # "return img_file, rgb_map, targets" --> this is what each time the dataloader extract form the dataset
+        global_step = num_iters_per_epoch * (epoch - 1) + batch_idx + 1 # il numero di batches processati dall'inizio (comprendendo tutte le epoche)
 
         batch_size = imgs.size(0)
 
         targets = targets.to(configs.device, non_blocking=True)
         imgs = imgs.to(configs.device, non_blocking=True)
-        total_loss, outputs = model(imgs, targets)
+        total_loss, outputs = model(imgs, targets) # ci calcoliamo l'errore --> vedi bene cosa restituisce la rete 'Darknet'
 
         # For torch.nn.DataParallel case
         if (not configs.distributed) and (configs.gpu_idx is None):
@@ -212,7 +212,7 @@ def train_one_epoch(train_dataloader, model, optimizer, lr_scheduler, epoch, con
 
         # compute gradient and perform backpropagation
         total_loss.backward()
-        if global_step % configs.subdivisions == 0:
+        if global_step % configs.subdivisions == 0: # è come se l'aggiornamento dei pesi avvenisse solo ogni 'subdivisions' passi (64 / batch_size)
             optimizer.step()
             # Adjust learning rate
             if configs.step_lr_in_epoch:
@@ -225,7 +225,7 @@ def train_one_epoch(train_dataloader, model, optimizer, lr_scheduler, epoch, con
         if configs.distributed:
             reduced_loss = reduce_tensor(total_loss.data, configs.world_size)
         else:
-            reduced_loss = total_loss.data
+            reduced_loss = total_loss.data # credo sia il campo in cui è contenuto il valore l'errore
         losses.update(to_python_float(reduced_loss), batch_size)
         # measure elapsed time
         # torch.cuda.synchronize()
