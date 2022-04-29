@@ -143,15 +143,15 @@ class EmptyModule(nn.Module):
 
 
 # support route shortcut and reorg
-class Darknet(nn.Module):
+class Darknet(nn.Module): # this is our network!
     def __init__(self, cfgfile, use_giou_loss):
         super(Darknet, self).__init__()
         self.use_giou_loss = use_giou_loss
-        self.blocks = parse_cfg(cfgfile)
+        self.blocks = parse_cfg(cfgfile) # il cfgfile  è un file di configurazione che descrive l'architettura della rete!
         self.width = int(self.blocks[0]['width'])
         self.height = int(self.blocks[0]['height'])
 
-        self.models = self.create_network(self.blocks)  # merge conv, bn,leaky
+        self.models = self.create_network(self.blocks)  # merge conv, bn, leaky
         self.yolo_layers = [layer for layer in self.models if layer.__class__.__name__ == 'YoloLayer']
 
         self.loss = self.models[len(self.models) - 1]
@@ -159,9 +159,9 @@ class Darknet(nn.Module):
         self.header = torch.IntTensor([0, 0, 0, 0])
         self.seen = 0
 
-    def forward(self, x, targets=None):
-        # batch_size, c, h, w
-        img_size = x.size(2)
+    def forward(self, x, targets=None): # questo metodo viene implicitamente chiamato da pytorch quando si invoca il 'model(input)'
+        # batch_size, c, h, w           # e nel nostro caso particolare ritorna anche la loss (gli YOLO layers finali ritornano l'error function)
+        img_size = x.size(2) 
         ind = -2
         self.loss = None
         outputs = dict()
@@ -175,9 +175,10 @@ class Darknet(nn.Module):
             if block['type'] == 'net':
                 continue
             elif block['type'] in ['convolutional', 'maxpool', 'reorg', 'upsample', 'avgpool', 'softmax', 'connected']:
-                x = self.models[ind](x)
-                outputs[ind] = x
-            elif block['type'] == 'route':
+                x = self.models[ind](x) # faccio il forward per il blocco seguente 
+                outputs[ind] = x # mi salvo l'output del blocco
+                
+            elif block['type'] == 'route': # forward phase complicata
                 layers = block['layers'].split(',')
                 layers = [int(i) if int(i) > 0 else int(i) + ind for i in layers]
                 if len(layers) == 1:
@@ -205,7 +206,7 @@ class Darknet(nn.Module):
                 else:
                     print("rounte number > 2 ,is {}".format(len(layers)))
 
-            elif block['type'] == 'shortcut':
+            elif block['type'] == 'shortcut': # forward phase complicata
                 from_layer = int(block['from'])
                 activation = block['activation']
                 from_layer = from_layer if from_layer > 0 else from_layer + ind
@@ -217,7 +218,7 @@ class Darknet(nn.Module):
                 elif activation == 'relu':
                     x = F.relu(x, inplace=True)
                 outputs[ind] = x
-            elif block['type'] == 'yolo':
+            elif block['type'] == 'yolo': # abbiamo due YOLO layer nella nostra rete e si trovano entrambi alla fine
                 x, layer_loss = self.models[ind](x, targets, img_size, self.use_giou_loss)
                 loss += layer_loss
                 yolo_outputs.append(x)
@@ -225,14 +226,15 @@ class Darknet(nn.Module):
                 continue
             else:
                 print('unknown type %s' % (block['type']))
-        yolo_outputs = to_cpu(torch.cat(yolo_outputs, 1))
+                
+        yolo_outputs = to_cpu(torch.cat(yolo_outputs, 1)) # concateniamo gli otput dei due YOLO layers e li salviamo nella CPU
 
-        return yolo_outputs if targets is None else (loss, yolo_outputs)
+        return yolo_outputs if targets is None else (loss, yolo_outputs) # se stiamo trainando la rete restituiamo sia la loss che gli yolo_outputs
 
     def print_network(self):
         print_cfg(self.blocks)
 
-    def create_network(self, blocks):
+    def create_network(self, blocks): # qui viene creata la rete a partire dal file di configurazione 'complex_yolov4.cfg'
         models = nn.ModuleList()
 
         prev_filters = 3
