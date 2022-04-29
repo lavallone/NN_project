@@ -77,7 +77,7 @@ def parse_test_configs():
     ####################################################################
     ##############Dataset, Checkpoints, and results dir configs#########
     ####################################################################
-    configs.working_dir = '../'
+    configs.working_dir = '../../utils/'
     configs.dataset_dir = os.path.join(configs.working_dir, 'dataset', 'kitti')
 
     if configs.save_test_output:
@@ -95,7 +95,7 @@ if __name__ == '__main__':
     model.print_network()
     print('\n\n' + '-*=' * 30 + '\n\n')
     assert os.path.isfile(configs.pretrained_path), "No file at {}".format(configs.pretrained_path)
-    model.load_state_dict(torch.load(configs.pretrained_path))
+    model.load_state_dict(torch.load(configs.pretrained_path, map_location='cuda:0'))
 
     configs.device = torch.device('cpu' if configs.no_cuda else 'cuda:{}'.format(configs.gpu_idx))
     model = model.to(device=configs.device)
@@ -139,8 +139,7 @@ if __name__ == '__main__':
             out_img = merge_rgb_to_bev(img_rgb, img_bev, output_width=608)
 
             print('\tDone testing the {}th sample, time: {:.1f}ms, speed {:.2f}FPS'.format(batch_idx, (t2 - t1) * 1000,
-                                                                                           1 / (t2 - t1)))
-
+                 1 / (t2 - t1))) # quest'ultima quantità rappresenta i FPS (Frames Per Second) --> indica cioè la vlocità con cui il nostro modello riesce a fare inferenza in real-time!
             if configs.save_test_output:
                 if configs.output_format == 'image':
                     img_fn = os.path.basename(img_paths[0])[:-4]
