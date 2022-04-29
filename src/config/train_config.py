@@ -149,9 +149,9 @@ def parse_train_configs():
     ####################################################################
     ############## Dataset, logs, Checkpoints dir ######################
     ####################################################################
-    configs.dataset_dir = os.path.join(configs.working_dir, '../../utils/dataset', 'kitti')
-    configs.checkpoints_dir = os.path.join(configs.working_dir, '../../utils/checkpoints', configs.saved_fn)
-    configs.logs_dir = os.path.join(configs.working_dir, '../../utils/logs', configs.saved_fn)
+    configs.dataset_dir = os.path.join(configs.working_dir, '../utils/dataset', 'kitti')
+    configs.checkpoints_dir = os.path.join(configs.working_dir, '../utils/checkpoints', configs.saved_fn)
+    configs.logs_dir = os.path.join(configs.working_dir, '../utils/logs', configs.saved_fn)
 
     if not os.path.isdir(configs.checkpoints_dir):
         os.makedirs(configs.checkpoints_dir)
