@@ -15,8 +15,8 @@ import numpy as  np
 sys.path.append('../')
 
 from models.yolo_layer import YoloLayer
-from models.darknet_utils import parse_cfg, print_cfg, load_fc, load_conv_bn, load_conv
-from utils.torch_utils import to_cpu
+from models.darknet_utils import parse_cfg, print_cfg, load_fc, load_conv_bn, load_conv # funzioni utili varie
+from utils.torch_utils import to_cpu # carica semplicemene il tensore in input sulla CPU
 
 
 class Mish(nn.Module):

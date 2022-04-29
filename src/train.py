@@ -204,7 +204,7 @@ def train_one_epoch(train_dataloader, model, optimizer, lr_scheduler, epoch, con
 
         targets = targets.to(configs.device, non_blocking=True)
         imgs = imgs.to(configs.device, non_blocking=True)
-        total_loss, outputs = model(imgs, targets) # ci calcoliamo l'errore --> vedi bene cosa restituisce la rete 'Darknet'
+        total_loss, outputs = model(imgs, targets) # Darknet, e più specificamente i YOLO layers, restituiscono come ouput sia l'errore calcolato sia i due output dei due YOLO!
 
         # For torch.nn.DataParallel case
         if (not configs.distributed) and (configs.gpu_idx is None):
