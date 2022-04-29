@@ -21,7 +21,7 @@ def parse_train_configs():
                         help='re-produce the results with seed random')
     parser.add_argument('--saved_fn', type=str, default='complexer_yolo', metavar='FN',
                         help='The name using for saving logs, models,...')
-    parser.add_argument('--working-dir', type=str, default='../', metavar='PATH',
+    parser.add_argument('--working-dir', type=str, default='../../utils/', metavar='PATH', # the working directory will be the 'utils' folder outside the repo!
                         help='The ROOT working directory')
     ####################################################################
     ##############     Model configs            ########################
@@ -149,9 +149,9 @@ def parse_train_configs():
     ####################################################################
     ############## Dataset, logs, Checkpoints dir ######################
     ####################################################################
-    configs.dataset_dir = os.path.join(configs.working_dir, '../utils/dataset', 'kitti')
-    configs.checkpoints_dir = os.path.join(configs.working_dir, '../utils/checkpoints', configs.saved_fn)
-    configs.logs_dir = os.path.join(configs.working_dir, '../utils/logs', configs.saved_fn)
+    configs.dataset_dir = os.path.join(configs.working_dir, 'dataset', 'kitti')
+    configs.checkpoints_dir = os.path.join(configs.working_dir, 'checkpoints', configs.saved_fn)
+    configs.logs_dir = os.path.join(configs.working_dir, 'logs', configs.saved_fn)
 
     if not os.path.isdir(configs.checkpoints_dir):
         os.makedirs(configs.checkpoints_dir)
