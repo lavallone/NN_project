@@ -53,14 +53,17 @@ class KittiDataset(Dataset):
         self.label_dir = os.path.join(self.dataset_dir, sub_folder, "label_2")
         split_txt_path = os.path.join(self.dataset_dir, 'ImageSets', '{}.txt'.format(mode))
         self.image_idx_list = [x.strip() for x in open(split_txt_path).readlines()]
+        print("1")
 
         if self.is_test:
             self.sample_id_list = [int(sample_id) for sample_id in self.image_idx_list]
         else:
             self.sample_id_list = self.remove_invalid_idx(self.image_idx_list)
+        print("2")
 
         if num_samples is not None: # num_samples serve solo per selezionare una porzione del dataset per fare debug!
             self.sample_id_list = self.sample_id_list[:num_samples]
+        print("3")
         self.num_samples = len(self.sample_id_list)
         print("FINE KittiDataset")
 
