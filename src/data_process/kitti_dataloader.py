@@ -32,15 +32,13 @@ def create_train_dataloader(configs):
                                  aug_transforms=train_aug_transforms, multiscale=configs.multiscale_training,
                                  num_samples=configs.num_samples, mosaic=configs.mosaic,
                                  random_padding=configs.random_padding)
-    print("after KittiDataset")
+    
     train_sampler = None # il sampler credo serva per la distribuzione parallela
     if configs.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    print("Creating the dataloader...")
     train_dataloader = DataLoader(train_dataset, batch_size=configs.batch_size, shuffle=(train_sampler is None),
                                   pin_memory=configs.pin_memory, num_workers=configs.num_workers, sampler=train_sampler,
                                   collate_fn=train_dataset.collate_fn) # try to play with the num_workers parameter --> the CPU has 16 cores!!!
-    print("Instantiated...")
     return train_dataloader, train_sampler
 
 
