@@ -47,7 +47,8 @@ class KittiDataset(Dataset):
         self.random_padding = random_padding
         self.mosaic_border = [-self.img_size // 2, -self.img_size // 2]
 
-        self.lidar_dir = os.path.join(self.dataset_dir, sub_folder, "velodyne")
+        self.lidar_dir = os.path.join(self.dataset_dir, sub_folder, "velodyne") 
+        print(self.lidar_dir)
         self.image_dir = os.path.join(self.dataset_dir, sub_folder, "image_2")
         self.calib_dir = os.path.join(self.dataset_dir, sub_folder, "calib")
         self.label_dir = os.path.join(self.dataset_dir, sub_folder, "label_2")
