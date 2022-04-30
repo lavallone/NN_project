@@ -48,7 +48,6 @@ class KittiDataset(Dataset):
         self.mosaic_border = [-self.img_size // 2, -self.img_size // 2]
 
         self.lidar_dir = os.path.join(self.dataset_dir, sub_folder, "velodyne") 
-        print(self.lidar_dir)
         self.image_dir = os.path.join(self.dataset_dir, sub_folder, "image_2")
         self.calib_dir = os.path.join(self.dataset_dir, sub_folder, "calib")
         self.label_dir = os.path.join(self.dataset_dir, sub_folder, "label_2")
@@ -63,6 +62,7 @@ class KittiDataset(Dataset):
         if num_samples is not None: # num_samples serve solo per selezionare una porzione del dataset per fare debug!
             self.sample_id_list = self.sample_id_list[:num_samples]
         self.num_samples = len(self.sample_id_list)
+        print("FINE KittiDataset")
 
     def __getitem__(self, index):
         if self.is_test:
