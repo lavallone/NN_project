@@ -123,7 +123,9 @@ def main_worker(gpu_idx, configs):
     if logger is not None:
         logger.info(">>> Loading dataset & getting dataloader...")
     # Create dataloader
+    print("INIZIO")
     train_dataloader, train_sampler = create_train_dataloader(configs)
+    print("FINE")
     if logger is not None:
         logger.info('number of batches in training set: {}'.format(len(train_dataloader)))
 

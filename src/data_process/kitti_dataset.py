@@ -27,6 +27,7 @@ import config.kitti_config as cnf
 
 
 class KittiDataset(Dataset):
+    print("Creating the KittiDataset")
     def __init__(self, dataset_dir, mode='train', lidar_transforms=None, aug_transforms=None, multiscale=False,
                  num_samples=None, mosaic=False, random_padding=False):
         self.dataset_dir = dataset_dir
