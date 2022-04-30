@@ -21,17 +21,18 @@ from data_process.transformation import Compose, OneOf, Random_Rotation, Random_
 
 def create_train_dataloader(configs):
     """Create dataloader for training"""
-    print("Entered")
+    
     train_lidar_transforms = OneOf([Random_Rotation(limit_angle=20., p=1.0), Random_Scaling(scaling_range=(0.95, 1.05), p=1.0)], p=0.66)
 
     train_aug_transforms = Compose([Horizontal_Flip(p=configs.hflip_prob),
                                     Cutout(n_holes=configs.cutout_nholes, ratio=configs.cutout_ratio, fill_value=configs.cutout_fill_value, p=configs.cutout_prob)
                                    ], p=1.)
-    print("Before  KittiDataset")
+    
     train_dataset = KittiDataset(configs.dataset_dir, mode='train', lidar_transforms=train_lidar_transforms,
                                  aug_transforms=train_aug_transforms, multiscale=configs.multiscale_training,
                                  num_samples=configs.num_samples, mosaic=configs.mosaic,
                                  random_padding=configs.random_padding)
+    print("after KittiDataset")
     train_sampler = None # il sampler credo serva per la distribuzione parallela
     if configs.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
