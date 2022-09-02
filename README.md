@@ -1,5 +1,5 @@
-# NN project - YOLOv4
+# NN project - DINO
 
 Neural Networks course's project.
 
-Re-implementation of the paper "YOLOv4: Optimal Speed and Accuracy of Object Detection".
+Re-implementation of the paper "Emerging Properties in Self-Supervised Vision Transformers".
