@@ -30,9 +30,8 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torchvision import models as torchvision_models
 
-import utils.utils
-import architectures.vision_transformer as vits
-from architectures.vision_transformer import DINOHead
+from utils import utils
+from architectures import vision_transformer as vits
 
 torchvision_archs = sorted(name for name in torchvision_models.__dict__
     if name.islower() and not name.startswith("__")
@@ -117,9 +116,9 @@ def get_args_parser():
         Used for small local view cropping of multi-crop.""")
 
     # Misc
-    parser.add_argument('--data_path', default='/path/to/imagenet/train/', type=str,
+    parser.add_argument('--data_path', default='/../../../ImageNette/train', type=str,
         help='Please specify path to the ImageNet training data.') # I simply need a folder with all the train images inside  
-    parser.add_argument('--output_dir', default=".", type=str, help='Path to save logs and checkpoints.')
+    parser.add_argument('--output_dir', default="checkpoints", type=str, help='Path to save logs and checkpoints.')
     parser.add_argument('--saveckp_freq', default=20, type=int, help='Save checkpoint every x epochs.')
     parser.add_argument('--seed', default=0, type=int, help='Random seed.')
     parser.add_argument('--num_workers', default=10, type=int, help='Number of data loading workers per GPU.')
@@ -176,7 +175,7 @@ def train_dino(args):
         print(f"Unknow architecture: {args.arch}")
 
     # multi-crop wrapper handles forward with inputs of different resolutions
-    student = utils.MultiCropWrapper(student, DINOHead(
+    student = utils.MultiCropWrapper(student, vits.DINOHead(
                                               embed_dim, # dipende dall'architettura che si va ad usare
                                               args.out_dim,
                                               use_bn=args.use_bn_in_head,
@@ -185,7 +184,7 @@ def train_dino(args):
     )
     teacher = utils.MultiCropWrapper(
         teacher,
-        DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
+        vits.DINOHead(embed_dim, args.out_dim, args.use_bn_in_head),
     )
     # move networks to gpu
     student, teacher = student.cuda(), teacher.cuda()
@@ -466,4 +465,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('DINO', parents=[get_args_parser()])
     args = parser.parse_args()
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    print("bella")
     train_dino(args)

@@ -25,8 +25,8 @@ from torchvision import transforms as pth_transforms
 from PIL import Image, ImageFile
 import numpy as np
 
-import utils.utils
-import architectures.vision_transformer as vits
+from utils import utils
+from architectures import vision_transformer as vits
 from eval_knn import extract_features
 
 

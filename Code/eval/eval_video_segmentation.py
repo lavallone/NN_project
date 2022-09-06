@@ -30,8 +30,8 @@ from torch.nn import functional as F
 from PIL import Image
 from torchvision import transforms
 
-import utils.utils
-import architectures.vision_transformer as vits
+from utils import utils
+from architectures import vision_transformer as vits
 
 
 @torch.no_grad()

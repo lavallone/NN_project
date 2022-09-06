@@ -23,8 +23,8 @@ from torchvision import datasets
 from torchvision import transforms as pth_transforms
 from torchvision import models as torchvision_models
 
-import utils
-import architectures.vision_transformer as vits
+from utils import utils
+from architectures import vision_transformer as vits
 
 
 def extract_feature_pipeline(args):
