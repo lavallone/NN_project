@@ -88,7 +88,7 @@ def get_args_parser():
         help optimization for larger ViT architectures. 0 for disabling.""")
     parser.add_argument('--batch_size_per_gpu', default=64, type=int,
         help='Per-GPU batch-size : number of distinct images loaded on one GPU.')
-    parser.add_argument('--epochs', default=2, type=int, help='Number of epochs of training.') #100
+    parser.add_argument('--epochs', default=100, type=int, help='Number of epochs of training.')
     parser.add_argument('--freeze_last_layer', default=1, type=int, help="""Number of epochs
         during which we keep the output layer fixed. Typically doing so during
         the first epoch helps training. Try increasing this value if the loss does not decrease.""")
@@ -129,7 +129,7 @@ def get_args_parser():
 
 
 def train_dino(args):
-    utils.init_distributed_mode(args) # we're not going to use it! 
+    utils.init_distributed_mode(args) # we're not going to use multiple GPUs or multiple nodes!
     utils.fix_random_seeds(args.seed)
     print("git:\n  {}\n".format(utils.get_sha()))
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
@@ -465,5 +465,4 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('DINO', parents=[get_args_parser()])
     args = parser.parse_args()
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    print("bella")
     train_dino(args)
