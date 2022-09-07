@@ -163,7 +163,7 @@ def restart_from_checkpoint(ckp_path, run_variables=None, **kwargs):
     # key is what to look for in the checkpoint file
     # value is the object to load
     # example: {'state_dict': model}
-    for key, value in kwargs.items(): # [(student,student), (teacher,teacher), (optimizer,optimizer), (fp16_scaler,fp16_scaler), (dino_loss,dino_loss) ]
+    for key,value in kwargs.items(): # [(student,student), (teacher,teacher), (optimizer,optimizer), (fp16_scaler,fp16_scaler), (dino_loss,dino_loss) ]
         if key in checkpoint and value is not None: # 'student' and 'teacher' are two keys of checkpoint state_dict
             try:
                 msg = value.load_state_dict(checkpoint[key], strict=False) # loading the loaded parameters to the model (in this case 'value' is the model)
@@ -177,11 +177,12 @@ def restart_from_checkpoint(ckp_path, run_variables=None, **kwargs):
         else:
             print("=> key '{}' not found in checkpoint: '{}'".format(key, ckp_path))
 
-    # re load variable important for the run --> we update the number of epochs 
-    if run_variables is not None:
+    # we update the number of epochs, that is a inner variable of the 'checkpoint.pth' file
+    # so each time that we start training a model, we update the "to_restore" value (see main_dino.py)
+    if run_variables is not None: # {"epoch":0}
         for var_name in run_variables:
             if var_name in checkpoint:
-                run_variables[var_name] = checkpoint[var_name]
+                run_variables[var_name] = checkpoint[var_name] # {"epoch":late_checkpoint_epoch_value}
 
 
 def cosine_scheduler(base_value, final_value, epochs, niter_per_ep, warmup_epochs=0, start_warmup_value=0):
@@ -399,6 +400,7 @@ class MetricLogger(object):
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print('{} Total time: {} ({:.6f} s / it)'.format(
             header, total_time_str, total_time / len(iterable)))
+
 
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""

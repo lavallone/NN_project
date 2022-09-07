@@ -259,13 +259,13 @@ def train_dino(args):
 
     start_time = time.time()
     print("Starting DINO training !")
-    for epoch in range(start_epoch, args.epochs):
-        data_loader.sampler.set_epoch(epoch)
+    for epoch in range(start_epoch, args.epochs): # if we have a trained model until the start_epoch (=20) and we want to train it for 10 more, args.epochs has to be 30!
+        data_loader.sampler.set_epoch(epoch) # needed for parallel computing
 
         # ============ training one epoch of DINO ... ============
         train_stats = train_one_epoch(student, teacher, teacher_without_ddp, dino_loss,
-            data_loader, optimizer, lr_schedule, wd_schedule, momentum_schedule,
-            epoch, fp16_scaler, args)
+            data_loader, optimizer, lr_schedule, wd_schedule, momentum_schedule, epoch, 
+            fp16_scaler, args)
         # ============ writing logs ... ============
         save_dict = {
             'student': student.state_dict(),
@@ -278,8 +278,8 @@ def train_dino(args):
         if fp16_scaler is not None:
             save_dict['fp16_scaler'] = fp16_scaler.state_dict()
         par.save_on_master(save_dict, os.path.join(args.output_dir, 'checkpoint.pth')) # It's here that the model has been saved
-        if args.saveckp_freq and epoch % args.saveckp_freq == 0:
-            par.save_on_master(save_dict, os.path.join(args.output_dir, f'checkpoint{epoch:04}.pth'))
+        if args.saveckp_freq and epoch % args.saveckp_freq == 0 and epoch != 0:
+            par.save_on_master(save_dict, os.path.join(args.output_dir, f'checkpoint_{epoch:03}.pth'))
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      'epoch': epoch}
         if par.is_main_process():
@@ -293,7 +293,7 @@ def train_dino(args):
 def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loader,
                     optimizer, lr_schedule, wd_schedule, momentum_schedule,epoch,
                     fp16_scaler, args):
-    metric_logger = utils.MetricLogger(delimiter="  ") # useful tool to monitor the training phase
+    metric_logger = utils.MetricLogger(delimiter="  ") # [we need to place it in favour of WandB]
     header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
     for it, (images, _) in enumerate(metric_logger.log_every(data_loader, 10, header)):
         # update weight decay and learning rate according to their schedule
