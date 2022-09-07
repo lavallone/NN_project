@@ -31,6 +31,7 @@ from torchvision import datasets, transforms
 from torchvision import models as torchvision_models
 
 from utils import utils
+from parallel import utils as par
 from architectures import vision_transformer as vits
 
 torchvision_archs = sorted(name for name in torchvision_models.__dict__
@@ -129,7 +130,7 @@ def get_args_parser():
 
 
 def train_dino(args):
-    utils.init_distributed_mode(args) # we're not going to use multiple GPUs or multiple nodes!
+    par.init_distributed_mode(args) # we're not going to use multiple GPUs or multiple nodes!
     utils.fix_random_seeds(args.seed)
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True # it should improve the overall performance
@@ -151,10 +152,8 @@ def train_dino(args):
     # ============ building student and teacher networks ... ============
     # we changed the name DeiT-S for ViT-S to avoid confusions
     args.arch = args.arch.replace("deit", "vit")
-    # if the network is a Vision Transformer (i.e. vit_tiny, vit_small, vit_base)
-    print(vits.__dict__)
-    return 
-    if args.arch in vits.__dict__.keys():
+    # if the network is a Vision Transformer (i.e. vit_tiny, vit_small, vit_base) 
+    if args.arch in vits.__dict__.keys(): # very interesting use of ".__dict__"
         student = vits.__dict__[args.arch](
             patch_size=args.patch_size,
             drop_path_rate=args.drop_path_rate, # stochastic depth
@@ -167,7 +166,8 @@ def train_dino(args):
     #                             pretrained=False, drop_path_rate=args.drop_path_rate)
     #    teacher = torch.hub.load('facebookresearch/xcit:main', args.arch, pretrained=False)
     #    embed_dim = student.embed_dim
-    # otherwise, we check if the architecture is in torchvision models
+    
+    # otherwise, we check if the architecture is in torchvision models --> but it  won't happen easily
     elif args.arch in torchvision_models.__dict__.keys():
         student = torchvision_models.__dict__[args.arch]()
         teacher = torchvision_models.__dict__[args.arch]()
@@ -235,7 +235,7 @@ def train_dino(args):
 
     # ============ init schedulers ... ============
     lr_schedule = utils.cosine_scheduler(
-        args.lr * (args.batch_size_per_gpu * utils.get_world_size()) / 256.,  # linear scaling rule
+        args.lr * (args.batch_size_per_gpu * par.get_world_size()) / 256.,  # linear scaling rule
         args.min_lr,
         args.epochs, len(data_loader),
         warmup_epochs=args.warmup_epochs,
@@ -283,12 +283,12 @@ def train_dino(args):
         }
         if fp16_scaler is not None:
             save_dict['fp16_scaler'] = fp16_scaler.state_dict()
-        utils.save_on_master(save_dict, os.path.join(args.output_dir, 'checkpoint.pth')) # It's here that the model has been saved
+        par.save_on_master(save_dict, os.path.join(args.output_dir, 'checkpoint.pth')) # It's here that the model has been saved
         if args.saveckp_freq and epoch % args.saveckp_freq == 0:
-            utils.save_on_master(save_dict, os.path.join(args.output_dir, f'checkpoint{epoch:04}.pth'))
+            par.save_on_master(save_dict, os.path.join(args.output_dir, f'checkpoint{epoch:04}.pth'))
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
                      'epoch': epoch}
-        if utils.is_main_process():
+        if par.is_main_process():
             with (Path(args.output_dir) / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
     total_time = time.time() - start_time
