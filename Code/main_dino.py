@@ -308,15 +308,8 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
 
         # move images to gpu
         images = [im.cuda(non_blocking=True) for im in images]
-        print("#######################")
-        #print(images.type())
-        #print(images.shape)
-        print(len(images))
-        print(len(images[0]))
-        print(len(images[0][0]))
-        print(len(images[0][0][0]))
-        print(len(images[0][0][0][0]))
-        print(torch.tensor(images))
+        print("#ààààààààààà##########àààà")
+        print(len(images[5][0][0]))
         # teacher and student forward passes + compute dino loss
         with torch.cuda.amp.autocast(fp16_scaler is not None):
             teacher_output = teacher(images[:2])  # only the 2 global views pass through the teacher
@@ -457,7 +450,7 @@ class DataAugmentationDINO(object):
             normalize,
         ]) # so the local images will be 96x96
 
-    def __call__(self, image):
+    def __call__(self, image): # in this way each time a sample is taken from the dataset is composed in this way!
         crops = []
         crops.append(self.global_transfo1(image))
         crops.append(self.global_transfo2(image))
