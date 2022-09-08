@@ -316,7 +316,6 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
         print(len(images[0][0]))
         print(len(images[0][0][0]))
         print(len(images[0][0][0][0]))
-        print(len(images[0][0][0][0][0]))
         print(torch.tensor(images))
         # teacher and student forward passes + compute dino loss
         with torch.cuda.amp.autocast(fp16_scaler is not None):
