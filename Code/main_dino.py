@@ -121,7 +121,7 @@ def get_args_parser():
     parser.add_argument('--data_path', default='/../../../ImageNette/train', type=str,
         help='Please specify path to the ImageNet training data.') # I simply need a folder with all the train images inside  
     parser.add_argument('--output_dir', default="checkpoints", type=str, help='Path to save logs and checkpoints.')
-    parser.add_argument('--saveckp_freq', default=20, type=int, help='Save checkpoint every x epochs.')
+    parser.add_argument('--saveckp_freq', default=25, type=int, help='Save checkpoint every x epochs.')
     parser.add_argument('--seed', default=0, type=int, help='Random seed.')
     parser.add_argument('--num_workers', default=10, type=int, help='Number of data loading workers per GPU.')
     parser.add_argument("--dist_url", default="env://", type=str, help="""url used to set up
@@ -308,8 +308,6 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
 
         # move images to gpu
         images = [im.cuda(non_blocking=True) for im in images]
-        print("#ààààààààààà##########àààà")
-        print(len(images[5][0][0]))
         # teacher and student forward passes + compute dino loss
         with torch.cuda.amp.autocast(fp16_scaler is not None):
             teacher_output = teacher(images[:2])  # only the 2 global views pass through the teacher
