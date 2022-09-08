@@ -277,14 +277,16 @@ def train_dino(args):
         }
         if fp16_scaler is not None:
             save_dict['fp16_scaler'] = fp16_scaler.state_dict()
+        # Every epoch we update the 'checkpoint.pth' file!
         par.save_on_master(save_dict, os.path.join(args.output_dir, 'checkpoint.pth')) # It's here that the model has been saved
         if args.saveckp_freq and epoch % args.saveckp_freq == 0 and epoch != 0:
             par.save_on_master(save_dict, os.path.join(args.output_dir, f'checkpoint_{epoch:03}.pth'))
-        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                     'epoch': epoch}
+        # Every epoch we write the train stats on a log file! --> these are the metrics that we're interested in for logging with WandB!
+        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()}, 'epoch': epoch}
         if par.is_main_process():
             with (Path(args.output_dir) / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
+                
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
@@ -293,11 +295,11 @@ def train_dino(args):
 def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loader,
                     optimizer, lr_schedule, wd_schedule, momentum_schedule,epoch,
                     fp16_scaler, args):
-    metric_logger = utils.MetricLogger(delimiter="  ") # [we need to place it in favour of WandB]
+    metric_logger = utils.MetricLogger(delimiter="  ") # very interesting artifact
     header = 'Epoch: [{}/{}]'.format(epoch, args.epochs)
-    for it, (images, _) in enumerate(metric_logger.log_every(data_loader, 10, header)):
+    for it, (images, _) in enumerate(metric_logger.log_every(data_loader, 10, header)): # 'log_every' also returns batches of training images
         # update weight decay and learning rate according to their schedule
-        it = len(data_loader) * epoch + it  # global training iteration
+        it = len(data_loader) * epoch + it  # global training iteration :)
         for i, param_group in enumerate(optimizer.param_groups):
             param_group["lr"] = lr_schedule[it]
             if i == 0:  # only the first group is regularized
@@ -322,16 +324,14 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
             loss.backward()
             if args.clip_grad:
                 param_norms = utils.clip_gradients(student, args.clip_grad)
-            utils.cancel_gradients_last_layer(epoch, student,
-                                              args.freeze_last_layer)
+            utils.cancel_gradients_last_layer(epoch, student, args.freeze_last_layer)
             optimizer.step()
         else:
             fp16_scaler.scale(loss).backward()
             if args.clip_grad:
                 fp16_scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place
                 param_norms = utils.clip_gradients(student, args.clip_grad)
-            utils.cancel_gradients_last_layer(epoch, student,
-                                              args.freeze_last_layer)
+            utils.cancel_gradients_last_layer(epoch, student, args.freeze_last_layer)
             fp16_scaler.step(optimizer)
             fp16_scaler.update()
 
@@ -352,14 +352,14 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
-class DINOLoss(nn.Module):
+class DINOLoss(nn.Module): # loss used as a model :)
     def __init__(self, out_dim, ncrops, warmup_teacher_temp, teacher_temp,
                  warmup_teacher_temp_epochs, nepochs, student_temp=0.1,
                  center_momentum=0.9):
         super().__init__()
         self.student_temp = student_temp
         self.center_momentum = center_momentum
-        self.ncrops = ncrops
+        self.ncrops = ncrops # --> 10
         self.register_buffer("center", torch.zeros(1, out_dim)) # a buffer is not trained by the optimizer!
         # we apply a warm up for the teacher temperature because
         # a too high temperature makes the training instable at the beginning
