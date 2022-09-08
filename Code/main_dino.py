@@ -309,8 +309,8 @@ def train_one_epoch(student, teacher, teacher_without_ddp, dino_loss, data_loade
         # move images to gpu
         images = [im.cuda(non_blocking=True) for im in images]
         print("#######################")
-        print(images.type())
-        print(images.shape)
+        #print(images.type())
+        #print(images.shape)
         print(images)
         # teacher and student forward passes + compute dino loss
         with torch.cuda.amp.autocast(fp16_scaler is not None):
