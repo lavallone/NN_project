@@ -21,7 +21,9 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-from utils import utils
+import sys
+sys.path.append("../utils")
+import utils
 
 
 def drop_path(x, drop_prob: float = 0., training: bool = False):
