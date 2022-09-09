@@ -26,7 +26,7 @@ from torchvision import transforms as pth_transforms
 import numpy as np
 from PIL import Image
 
-import utils
+from utils import utils
 from architectures import vision_transformer as vits
 
 

@@ -31,7 +31,8 @@ from torchvision import transforms as pth_transforms
 import numpy as np
 from PIL import Image
 
-import utils
+from utils import utils
+from architectures import hubconf as pretrained
 from architectures import vision_transformer as vits
 
 
@@ -98,10 +99,9 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Visualize Self-Attention maps')
     parser.add_argument('--arch', default='vit_small', type=str,
-        choices=['vit_tiny', 'vit_small', 'vit_base'], help='Architecture (support only ViT atm).')
-    parser.add_argument('--patch_size', default=8, type=int, help='Patch resolution of the model.')
-    parser.add_argument('--pretrained_weights', default='', type=str,
-        help="Path to pretrained weights to load.")
+        choices=['vit_tiny', 'vit_small', 'vit_base', 'resnet_50'], help='Architecture (support only ViT atm).')
+    parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
+    parser.add_argument('--pretrained_weights', default='', type=str, help="Path to pretrained weights to load.")
     parser.add_argument("--checkpoint_key", default="teacher", type=str,
         help='Key to use in the checkpoint (example: "teacher")')
     parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
@@ -112,13 +112,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    
     # build model
     model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
     for p in model.parameters():
         p.requires_grad = False
     model.eval()
     model.to(device)
-    if os.path.isfile(args.pretrained_weights):
+    
+    if os.path.isfile(args.pretrained_weights): # here we load OUR trained models!
         state_dict = torch.load(args.pretrained_weights, map_location="cpu")
         if args.checkpoint_key is not None and args.checkpoint_key in state_dict:
             print(f"Take key {args.checkpoint_key} in provided checkpoint dict")
@@ -129,21 +131,25 @@ if __name__ == '__main__':
         state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
         msg = model.load_state_dict(state_dict, strict=False)
         print('Pretrained weights found at {} and loaded with msg: {}'.format(args.pretrained_weights, msg))
-    else:
+    else: # here we load paper's pretrained model
         print("Please use the `--pretrained_weights` argument to indicate the path of the checkpoint to evaluate.")
-        url = None
+        model = None
         if args.arch == "vit_small" and args.patch_size == 16:
-            url = "dino_deitsmall16_pretrain/dino_deitsmall16_pretrain.pth"
+            model = pretrained.dino_vits16()
         elif args.arch == "vit_small" and args.patch_size == 8:
-            url = "dino_deitsmall8_300ep_pretrain/dino_deitsmall8_300ep_pretrain.pth"  # model used for visualizations in our paper
+            model = pretrained.dino_vits8()  # model used for visualizations in our paper
         elif args.arch == "vit_base" and args.patch_size == 16:
-            url = "dino_vitbase16_pretrain/dino_vitbase16_pretrain.pth"
+            model = pretrained.dino_vitb16()
         elif args.arch == "vit_base" and args.patch_size == 8:
-            url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
-        if url is not None:
+            model = pretrained.dino_vitb8()
+        elif args.arch == "resnet_50":
+            model = pretrained.dino_resnet50()
+        if model is not None:
             print("Since no pretrained weights have been provided, we load the reference pretrained DINO weights.")
-            state_dict = torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url)
-            model.load_state_dict(state_dict, strict=True)
+            for p in model.parameters():
+                p.requires_grad = False
+            model.eval()
+            model.to(device)
         else:
             print("There is no reference weights available for this model => We use random weights.")
 
