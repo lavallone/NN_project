@@ -86,14 +86,15 @@ class VideoGenerator:
                         attention_folder = os.path.join(
                             self.args.output_path, "attention"
                         )
-
+                        print("1")
                         os.makedirs(attention_folder, exist_ok=True)
-
+                        print("2")
                         self._inference(self.args.input_path, attention_folder)
-
+                        print("3")
                         self._generate_video_from_images(
                             attention_folder, self.args.output_path
                         )
+                        print("4")
 
                 # If input path doesn't exists
                 else:
