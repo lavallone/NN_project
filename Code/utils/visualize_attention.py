@@ -31,10 +31,9 @@ from torchvision import transforms as pth_transforms
 import numpy as np
 from PIL import Image
 
-import sys
-sys.path.append('../')
-from architectures import vision_transformer as vits
-from architectures import hubconf as pretrained
+
+from architectures.vision_transformer #import * as vits
+from architectures.hubconf #import  * as pretrained
 
 def apply_mask(image, mask, color, alpha=0.5):
     for c in range(3):
