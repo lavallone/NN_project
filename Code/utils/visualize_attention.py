@@ -31,7 +31,6 @@ from torchvision import transforms as pth_transforms
 import numpy as np
 from PIL import Image
 
-from utils import utils
 from architectures import hubconf as pretrained
 from architectures import vision_transformer as vits
 
