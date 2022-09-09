@@ -30,7 +30,9 @@ import torch
 from torch import nn
 import torch.distributed as dist
 from PIL import ImageFilter, ImageOps
-from parallel import utils as par
+import sys
+sys.path.append("../parallel")
+import utils as par
 
 
 class GaussianBlur(object):
