@@ -23,8 +23,9 @@ import torch.nn as nn
 
 # capire  come importare nel migliore dei modi!
 import sys
-sys.path.append("utils")
+sys.path.append("../utils")
 import utils
+from utils import utils
 
 
 def drop_path(x, drop_prob: float = 0., training: bool = False):
