@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import os
 import glob
 import sys
@@ -21,7 +22,6 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
-import torchvision
 from torchvision import transforms as pth_transforms
 import numpy as np
 from PIL import Image
@@ -29,6 +29,7 @@ from PIL import Image
 import sys
 sys.path.append("../architectures")
 import vision_transformer as vits
+import hubconf as pretrained
 
 
 FOURCC = {
@@ -41,67 +42,51 @@ DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 class VideoGenerator:
     def __init__(self, args):
         self.args = args
-        # self.model = None
-        # Don't need to load model if you only want a video
-        if not self.args.video_only:
-            self.model = self.__load_model()
+        if args.mode =="compute":
+            self.model = self.load_model()
 
     def run(self):
         if self.args.input_path is None:
             print(f"Provided input path {self.args.input_path} is non valid.")
             sys.exit(1)
         else:
-            if self.args.video_only:
-                self._generate_video_from_images(
-                    self.args.input_path, self.args.output_path
-                )
+            if self.args.mode == "extract":
+                self.extract_frames_from_video(self.args.input_path, self.args.output_path)
+            elif self.args.mode == "generate":
+                self.generate_video_from_images(self.args.input_path, self.args.output_path)
             else:
                 # If input path exists
                 if os.path.exists(self.args.input_path):
                     # If input is a video file
                     if os.path.isfile(self.args.input_path):
-                        frames_folder = os.path.join(self.args.output_path, "frames")
-                        attention_folder = os.path.join(
-                            self.args.output_path, "attention"
-                        )
+                        frames_folder = os.path.join(self.args.output_path, "frames") # we create a frame folder
+                        attention_folder = os.path.join(self.args.output_path, "attention") # we create a folder for the computed attention features of each frame
 
+                        # if they don't exist, create them
                         os.makedirs(frames_folder, exist_ok=True)
                         os.makedirs(attention_folder, exist_ok=True)
 
-                        self._extract_frames_from_video(
-                            self.args.input_path, frames_folder
-                        )
+                        self.extract_frames_from_video(self.args.input_path, frames_folder)
 
-                        self._inference(
-                            frames_folder,
-                            attention_folder,
-                        )
+                        self.compute_attentions(frames_folder, attention_folder)
 
-                        self._generate_video_from_images(
-                            attention_folder, self.args.output_path
-                        )
+                        self.generate_video_from_images(attention_folder, self.args.output_path)
 
                     # If input is a folder of already extracted frames
-                    if os.path.isdir(self.args.input_path):
-                        attention_folder = os.path.join(
-                            self.args.output_path, "attention"
-                        )
-                        print("1")
+                    if os.path.isdir(self.args.input_path): 
+                        attention_folder = os.path.join(self.args.output_path, "attention")
                         os.makedirs(attention_folder, exist_ok=True)
-                        print("2")
-                        self._inference(self.args.input_path, attention_folder)
-                        print("3")
-                        self._generate_video_from_images(
-                            attention_folder, self.args.output_path
-                        )
-                        print("4")
+                        
+                        self.compute_attentions(self.args.input_path, attention_folder)
+                        
+                        self.generate_video_from_images(attention_folder, self.args.output_path)
 
                 # If input path doesn't exists
                 else:
                     print(f"Provided input path {self.args.input_path} doesn't exists.")
                     sys.exit(1)
 
-    def _extract_frames_from_video(self, inp: str, out: str):
+    def extract_frames_from_video(self, inp: str, out: str):
         vidcap = cv2.VideoCapture(inp)
         self.args.fps = vidcap.get(cv2.CAP_PROP_FPS)
 
@@ -117,10 +102,11 @@ class VideoGenerator:
             )
             success, image = vidcap.read()
             count += 1
+        print("Done!")
 
-    def _generate_video_from_images(self, inp: str, out: str):
+    def generate_video_from_images(self, inp: str, out: str):
         img_array = []
-        attention_images_list = sorted(glob.glob(os.path.join(inp, "attn-*.jpg")))
+        attention_images_list = sorted(glob.glob(os.path.join(inp, "attn_*.jpg")))
 
         # Get size of the first image
         with open(attention_images_list[0], "rb") as f:
@@ -137,19 +123,14 @@ class VideoGenerator:
                 img = img.convert("RGB")
                 img_array.append(cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR))
 
-        out = cv2.VideoWriter(
-            os.path.join(out, "video." + self.args.video_format),
-            FOURCC[self.args.video_format],
-            self.args.fps,
-            size,
-        )
+        out = cv2.VideoWriter(os.path.join(out, "video." + self.args.video_format), FOURCC[self.args.video_format], self.args.fps, size,)
 
         for i in range(len(img_array)):
             out.write(img_array[i])
         out.release()
-        print("Done")
+        print("Done!")  
 
-    def _inference(self, inp: str, out: str):
+    def compute_attentions(self, inp: str, out: str):
         print(f"Generating attention images to {out}")
 
         for img_path in tqdm(sorted(glob.glob(os.path.join(inp, "*.jpg")))):
@@ -206,175 +187,95 @@ class VideoGenerator:
                 th_attn[head] = th_attn[head][idx2[head]]
             th_attn = th_attn.reshape(nh, w_featmap, h_featmap).float()
             # interpolate
-            th_attn = (
-                nn.functional.interpolate(
-                    th_attn.unsqueeze(0),
-                    scale_factor=self.args.patch_size,
-                    mode="nearest",
-                )[0]
-                .cpu()
-                .numpy()
-            )
+            th_attn = (nn.functional.interpolate(th_attn.unsqueeze(0), scale_factor=self.args.patch_size, mode="nearest",)[0].cpu().numpy())
 
             attentions = attentions.reshape(nh, w_featmap, h_featmap)
-            attentions = (
-                nn.functional.interpolate(
-                    attentions.unsqueeze(0),
-                    scale_factor=self.args.patch_size,
-                    mode="nearest",
-                )[0]
-                .cpu()
-                .numpy()
-            )
+            attentions = (nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=self.args.patch_size, mode="nearest",)[0].cpu().numpy())
 
             # save attentions heatmaps
-            fname = os.path.join(out, "attn-" + os.path.basename(img_path))
-            plt.imsave(
-                fname=fname,
-                arr=sum(
-                    attentions[i] * 1 / attentions.shape[0]
-                    for i in range(attentions.shape[0])
-                ),
-                cmap="inferno",
-                format="jpg",
-            )
+            fname = os.path.join(out, "attn_" + os.path.basename(img_path))
+            plt.imsave(fname=fname, arr=sum(attentions[i] * 1 / attentions.shape[0] for i in range(attentions.shape[0])), map="inferno", format="jpg",)
 
-    def __load_model(self):
-        # build model
-        model = vits.__dict__[self.args.arch](
-            patch_size=self.args.patch_size, num_classes=0
-        )
-        for p in model.parameters():
-            p.requires_grad = False
-        model.eval()
-        model.to(DEVICE)
+            print("Done!")
+
+    def load_model(self):
 
         if os.path.isfile(self.args.pretrained_weights):
+            # build model
+            model = vits.__dict__[self.args.arch](patch_size=self.args.patch_size, num_classes=0)
             state_dict = torch.load(self.args.pretrained_weights, map_location="cpu")
-            if (
-                self.args.checkpoint_key is not None
-                and self.args.checkpoint_key in state_dict
-            ):
-                print(
-                    f"Take key {self.args.checkpoint_key} in provided checkpoint dict"
-                )
+            if (self.args.checkpoint_key is not None and self.args.checkpoint_key in state_dict):
+                print(f"Take key {self.args.checkpoint_key} in provided checkpoint dict")
                 state_dict = state_dict[self.args.checkpoint_key]
             state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
             # remove `backbone.` prefix induced by multicrop wrapper
             state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
             msg = model.load_state_dict(state_dict, strict=False)
-            print(
-                "Pretrained weights found at {} and loaded with msg: {}".format(
-                    self.args.pretrained_weights, msg
-                )
-            )
+            print("Pretrained weights found at {} and loaded with msg: {}".format(self.args.pretrained_weights, msg))
+            
         else:
-            print(
-                "Please use the `--pretrained_weights` argument to indicate the path of the checkpoint to evaluate."
-            )
-            url = None
-            if self.args.arch == "vit_small" and self.args.patch_size == 16:
-                url = "dino_deitsmall16_pretrain/dino_deitsmall16_pretrain.pth"
-            elif self.args.arch == "vit_small" and self.args.patch_size == 8:
-                url = "dino_deitsmall8_300ep_pretrain/dino_deitsmall8_300ep_pretrain.pth"  # model used for visualizations in our paper
-            elif self.args.arch == "vit_base" and self.args.patch_size == 16:
-                url = "dino_vitbase16_pretrain/dino_vitbase16_pretrain.pth"
-            elif self.args.arch == "vit_base" and self.args.patch_size == 8:
-                url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
-            if url is not None:
-                print(
-                    "Since no pretrained weights have been provided, we load the reference pretrained DINO weights."
-                )
-                state_dict = torch.hub.load_state_dict_from_url(
-                    url="https://dl.fbaipublicfiles.com/dino/" + url
-                )
-                model.load_state_dict(state_dict, strict=True)
+            print("Please use the `--pretrained_weights` argument to indicate the path of the checkpoint to evaluate.")
+            model = None
+            if args.arch == "vit_small" and args.patch_size == 16:
+                model = pretrained.dino_vits16()
+            elif args.arch == "vit_small" and args.patch_size == 8:
+                model = pretrained.dino_vits8()  # model used for visualizations in our paper
+            elif args.arch == "vit_base" and args.patch_size == 16:
+                model = pretrained.dino_vitb16()
+            elif args.arch == "vit_base" and args.patch_size == 8:
+                model = pretrained.dino_vitb8()
+            elif args.arch == "resnet_50":
+                model = pretrained.dino_resnet50()
+            if model is not None:
+                print("Since no pretrained weights have been provided, we load the reference pretrained DINO weights.")
             else:
-                print(
-                    "There is no reference weights available for this model => We use random weights."
-                )
-        return model
+                print("There is no reference weights available for this model => We use random weights.")
+            return model
+        
+        for p in model.parameters():
+            p.requires_grad = False
+        model.eval()
+        model.to(DEVICE)
 
 
 def parse_args():
     parser = argparse.ArgumentParser("Generation self-attention video")
-    parser.add_argument(
-        "--arch",
-        default="vit_small",
-        type=str,
-        choices=["vit_tiny", "vit_small", "vit_base"],
-        help="Architecture (support only ViT atm).",
-    )
-    parser.add_argument(
-        "--patch_size", default=8, type=int, help="Patch resolution of the self.model."
-    )
-    parser.add_argument(
-        "--pretrained_weights",
-        default="",
-        type=str,
-        help="Path to pretrained weights to load.",
-    )
-    parser.add_argument(
-        "--checkpoint_key",
-        default="teacher",
-        type=str,
-        help='Key to use in the checkpoint (example: "teacher")',
-    )
-    parser.add_argument(
-        "--input_path",
-        required=True,
-        type=str,
+    parser.add_argument("--mode", required=True, type=str, help="Extract frames / Generate video from frames / Compute attentions")
+    parser.add_argument("--arch", default="vit_small", type=str, choices=["vit_tiny", "vit_small", "vit_base"], help="Architecture.",)
+    parser.add_argument("--patch_size", default=16, type=int, help="Patch resolution of the self.model.")
+    parser.add_argument("--pretrained_weights", default="", type=str, help="Path to pretrained weights to load.",)
+    parser.add_argument( "--checkpoint_key", default="teacher", type=str, help='Key to use in the checkpoint (example: "teacher")',)
+    parser.add_argument("--input_path", required=True, type=str,
         help="""Path to a video file if you want to extract frames
             or to a folder of images already extracted by yourself.
             or to a folder of attention images.""",
     )
-    parser.add_argument(
-        "--output_path",
-        default="./",
-        type=str,
+    parser.add_argument("--output_path", default="./", type=str,
         help="""Path to store a folder of frames and / or a folder of attention images.
             and / or a final video. Default to current directory.""",
     )
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=0.6,
-        help="""We visualize masks
-        obtained by thresholding the self-attention maps to keep xx percent of the mass.""",
-    )
-    parser.add_argument(
-        "--resize",
-        default=None,
-        type=int,
-        nargs="+",
+    parser.add_argument("--threshold", type=float, default=0.6, help="""We visualize masks obtained by thresholding the self-attention maps to keep xx percent of the mass.""",)
+    parser.add_argument("--resize", default=None, type=int, nargs="+",
         help="""Apply a resize transformation to input image(s). Use if OOM error.
-        Usage (single or W H): --resize 512, --resize 720 1280""",
+            Usage (single or W H): --resize 512, --resize 720 1280""",
     )
-    parser.add_argument(
-        "--video_only",
-        action="store_true",
+    parser.add_argument("--video_only", action="store_true", # da capire meglio !!!!!! 
         help="""Use this flag if you only want to generate a video and not all attention images.
             If used, --input_path must be set to the folder of attention images. Ex: ./attention/""",
     )
-    parser.add_argument(
-        "--fps",
-        default=30.0,
-        type=float,
-        help="FPS of input / output video. Automatically set if you extract frames from a video.",
-    )
-    parser.add_argument(
-        "--video_format",
-        default="mp4",
-        type=str,
-        choices=["mp4", "avi"],
-        help="Format of generated video (mp4 or avi).",
-    )
+    parser.add_argument("--fps", default=20.0, type=float, help="FPS of input / output video. Automatically set if you extract frames from a video.",)
+    parser.add_argument("--video_format", default="mp4", type=str, choices=["mp4", "avi"], help="Format of generated video (mp4 or avi).",)
 
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-
     vg = VideoGenerator(args)
+    if args.mode == "extract":
+        
+    elif args.mode == "generate":
+        
+    elif args.mode == "compute":
+        
     vg.run()
