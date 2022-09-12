@@ -28,6 +28,8 @@ def dino_vits16(pretrained=True, **kwargs):
     if pretrained:
         state_dict = torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/dino_deitsmall16_pretrain/dino_deitsmall16_pretrain.pth")
         model.load_state_dict(state_dict, strict=True)
+    print("#####################à")
+    print(next(model.parameters()).is_cuda)
     return model
 
 

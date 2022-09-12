@@ -220,10 +220,15 @@ class VideoGenerator:
                 print("There is no reference weights available for this model => We use random weights.")
             return model
         
+        print("########3333#############à")
+        print(next(self.model.parameters()).is_cuda)
         for p in model.parameters():
             p.requires_grad = False
         model.eval()
         model.to(DEVICE)
+        print("########4444#############à")
+        print(next(self.model.parameters()).is_cuda)
+        return model
 
 
 def parse_args():
