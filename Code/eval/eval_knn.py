@@ -24,8 +24,14 @@ from torchvision import transforms as pth_transforms
 from torchvision import models as torchvision_models
 
 from utils import utils
+from parallel import utils as par
 from architectures import vision_transformer as vits
 
+
+class ReturnIndexDataset(datasets.ImageFolder):
+    def __getitem__(self, idx):
+        img, _ = super(ReturnIndexDataset, self).__getitem__(idx)
+        return img, idx
 
 def extract_feature_pipeline(args):
     # ============ preparing data ... ============
@@ -59,8 +65,6 @@ def extract_feature_pipeline(args):
     if "vit" in args.arch:
         model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
         print(f"Model {args.arch} {args.patch_size}x{args.patch_size} built.")
-    elif "xcit" in args.arch:
-        model = torch.hub.load('facebookresearch/xcit:main', args.arch, num_classes=0)
     elif args.arch in torchvision_models.__dict__.keys():
         model = torchvision_models.__dict__[args.arch](num_classes=0)
         model.fc = nn.Identity()
@@ -77,7 +81,7 @@ def extract_feature_pipeline(args):
     print("Extracting features for val set...")
     test_features = extract_features(model, data_loader_val, args.use_cuda)
 
-    if utils.get_rank() == 0:
+    if par.get_rank() == 0:
         train_features = nn.functional.normalize(train_features, dim=1, p=2)
         test_features = nn.functional.normalize(test_features, dim=1, p=2)
 
@@ -85,10 +89,11 @@ def extract_feature_pipeline(args):
     test_labels = torch.tensor([s[-1] for s in dataset_val.samples]).long()
     # save features and labels
     if args.dump_features and dist.get_rank() == 0:
-        torch.save(train_features.cpu(), os.path.join(args.dump_features, "trainfeat.pth"))
-        torch.save(test_features.cpu(), os.path.join(args.dump_features, "testfeat.pth"))
-        torch.save(train_labels.cpu(), os.path.join(args.dump_features, "trainlabels.pth"))
-        torch.save(test_labels.cpu(), os.path.join(args.dump_features, "testlabels.pth"))
+        torch.save(train_features.cpu(), os.path.join(args.dump_features, "train_feat.pth"))
+        torch.save(test_features.cpu(), os.path.join(args.dump_features, "test_feat.pth"))
+        torch.save(train_labels.cpu(), os.path.join(args.dump_features, "train_labels.pth"))
+        torch.save(test_labels.cpu(), os.path.join(args.dump_features, "test_labels.pth"))
+        
     return train_features, test_features, train_labels, test_labels
 
 
@@ -141,16 +146,16 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
 
 @torch.no_grad()
 def knn_classifier(train_features, train_labels, test_features, test_labels, k, T, num_classes=1000):
+    
     top1, top5, total = 0.0, 0.0, 0
     train_features = train_features.t()
     num_test_images, num_chunks = test_labels.shape[0], 100
     imgs_per_chunk = num_test_images // num_chunks
     retrieval_one_hot = torch.zeros(k, num_classes).to(train_features.device)
+    
     for idx in range(0, num_test_images, imgs_per_chunk):
         # get the features for test images
-        features = test_features[
-            idx : min((idx + imgs_per_chunk), num_test_images), :
-        ]
+        features = test_features[idx : min((idx + imgs_per_chunk), num_test_images), :]
         targets = test_labels[idx : min((idx + imgs_per_chunk), num_test_images)]
         batch_size = targets.shape[0]
 
@@ -177,18 +182,15 @@ def knn_classifier(train_features, train_labels, test_features, test_labels, k, 
         top1 = top1 + correct.narrow(1, 0, 1).sum().item()
         top5 = top5 + correct.narrow(1, 0, min(5, k)).sum().item()  # top5 does not make sense if k < 5
         total += targets.size(0)
+        
     top1 = top1 * 100.0 / total
     top5 = top5 * 100.0 / total
     return top1, top5
 
 
-class ReturnIndexDataset(datasets.ImageFolder):
-    def __getitem__(self, idx):
-        img, lab = super(ReturnIndexDataset, self).__getitem__(idx)
-        return img, idx
-
 
 if __name__ == '__main__':
+    
     parser = argparse.ArgumentParser('Evaluation with weighted k-NN on ImageNet')
     parser.add_argument('--batch_size_per_gpu', default=128, type=int, help='Per-GPU batch-size')
     parser.add_argument('--nb_knn', default=[10, 20, 100, 200], nargs='+', type=int,
@@ -213,21 +215,20 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', default='/path/to/imagenet/', type=str)
     args = parser.parse_args()
 
-    utils.init_distributed_mode(args)
-    print("git:\n  {}\n".format(utils.get_sha()))
+    par.init_distributed_mode(args)
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
 
     if args.load_features:
-        train_features = torch.load(os.path.join(args.load_features, "trainfeat.pth"))
-        test_features = torch.load(os.path.join(args.load_features, "testfeat.pth"))
-        train_labels = torch.load(os.path.join(args.load_features, "trainlabels.pth"))
-        test_labels = torch.load(os.path.join(args.load_features, "testlabels.pth"))
+        train_features = torch.load(os.path.join(args.load_features, "train_feat.pth"))
+        test_features = torch.load(os.path.join(args.load_features, "test_feat.pth"))
+        train_labels = torch.load(os.path.join(args.load_features, "train_labels.pth"))
+        test_labels = torch.load(os.path.join(args.load_features, "test_labels.pth"))
     else:
         # need to extract features !
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
 
-    if utils.get_rank() == 0:
+    if par.get_rank() == 0:
         if args.use_cuda:
             train_features = train_features.cuda()
             test_features = test_features.cuda()
@@ -236,7 +237,6 @@ if __name__ == '__main__':
 
         print("Features are ready!\nStart the k-NN classification.")
         for k in args.nb_knn:
-            top1, top5 = knn_classifier(train_features, train_labels,
-                test_features, test_labels, k, args.temperature)
+            top1, top5 = knn_classifier(train_features, train_labels, test_features, test_labels, k, args.temperature)
             print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
     dist.barrier()
