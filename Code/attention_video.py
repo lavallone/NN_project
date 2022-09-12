@@ -157,7 +157,7 @@ class VideoGenerator:
             h_featmap = img.shape[-1] // self.args.patch_size
 
             print("#####################à")
-            print(self.model.is_cuda())
+            print(next(self.model.parameters()).is_cuda)
             attentions = self.model.get_last_selfattention(img.to(DEVICE))
 
             nh = attentions.shape[1]  # number of head
