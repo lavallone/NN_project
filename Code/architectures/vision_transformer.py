@@ -213,8 +213,6 @@ class VisionTransformer(nn.Module):
         return x[:, 0]
 
     def get_last_selfattention(self, x):
-        print("---------------")
-        print(x.is_cuda())
         x = self.prepare_tokens(x)
         for i, blk in enumerate(self.blocks):
             if i < len(self.blocks) - 1:
