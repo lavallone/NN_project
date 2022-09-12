@@ -39,8 +39,10 @@ DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 class VideoGenerator:
     def __init__(self, args):
         self.args = args
-        if args.mode =="compute":
+        if args.mode == "compute":
             self.model = self.load_model()
+            print("#####################à")
+            print(next(self.model.parameters()).is_cuda)
 
     def run(self):
         if self.args.input_path is None:
