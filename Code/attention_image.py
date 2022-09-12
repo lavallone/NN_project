@@ -129,6 +129,7 @@ def compute_attention(image_path, image_size, patch_size, model, threshold):
     # we keep only the output patch attention
     attentions = attentions[0, :, 0, 1:].reshape(nh, -1)
 
+    global th_attn
     if threshold is not None:
         # we keep only a certain percentage of the mass
         val, idx = torch.sort(attentions)
@@ -199,7 +200,6 @@ if __name__ == '__main__':
     model.eval()
     model.to(device)
 
-    th_attn = None
     nh, img, attentions, th_attn = compute_attention(args.image_path, args.image_size, args.patch_size, model, args.threshold)
     
     # save attentions heatmaps --> we save "nh" attention map images
