@@ -40,10 +40,7 @@ class VideoGenerator:
     def __init__(self, args):
         self.args = args
         if args.mode == "compute":
-            print("£££££££££££££££££££££££££££££££££££££££££££££££££££££££")
             self.model = self.load_model()
-            print("#####################à")
-            print(next(self.model.parameters()).is_cuda)
 
     def run(self):
         if self.args.input_path is None:
@@ -188,7 +185,7 @@ class VideoGenerator:
             print("Done!")
 
     def load_model(self):
-
+        
         if os.path.isfile(self.args.pretrained_weights):
             # build model
             model = vits.__dict__[self.args.arch](patch_size=self.args.patch_size, num_classes=0)
@@ -219,16 +216,11 @@ class VideoGenerator:
                 print("Since no pretrained weights have been provided, we load the reference pretrained DINO weights.")
             else:
                 print("There is no reference weights available for this model => We use random weights.")
-            return model
         
-        print("########3333#############à")
-        print(next(self.model.parameters()).is_cuda)
         for p in model.parameters():
             p.requires_grad = False
         model.eval()
         model.to(DEVICE)
-        print("########4444#############à")
-        print(next(self.model.parameters()).is_cuda)
         return model
 
 
