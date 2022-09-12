@@ -180,7 +180,7 @@ class VideoGenerator:
 
             # save attentions heatmaps
             fname = os.path.join(out, "attn_" + os.path.basename(img_path))
-            plt.imsave(fname=fname, arr=sum(attentions[i] * 1 / attentions.shape[0] for i in range(attentions.shape[0])), map="inferno", format="jpg",)
+            plt.imsave(fname=fname, arr=sum(attentions[i] * 1 / attentions.shape[0] for i in range(attentions.shape[0])), cmap="inferno", format="jpg",)
 
             print("Done!")
 
