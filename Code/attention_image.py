@@ -199,6 +199,7 @@ if __name__ == '__main__':
     model.eval()
     model.to(device)
 
+    th_attn = None
     nh, img, attentions, th_attn = compute_attention(args.image_path, args.image_size, args.patch_size, model, args.threshold)
     
     # save attentions heatmaps --> we save "nh" attention map images
