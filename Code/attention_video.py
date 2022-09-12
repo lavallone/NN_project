@@ -250,7 +250,7 @@ def parse_args():
             and / or a final video. Default to current directory.""",
     )
     parser.add_argument("--threshold", type=float, default=0.6, help="""We visualize masks obtained by thresholding the self-attention maps to keep xx percent of the mass.""",)
-    parser.add_argument("--resize", default=None, type=int, nargs="+",
+    parser.add_argument("--resize", default=720 1280, type=int, nargs="+",
         help="""Apply a resize transformation to input image(s). Use if OOM error.
             Usage (single or W H): --resize 512, --resize 720 1280""",
     )
