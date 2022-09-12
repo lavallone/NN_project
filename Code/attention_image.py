@@ -129,7 +129,7 @@ def compute_attention(image_path, image_size, patch_size, model, threshold):
     # we keep only the output patch attention
     attentions = attentions[0, :, 0, 1:].reshape(nh, -1)
 
-    global th_attn
+    th_attn = None
     if threshold is not None:
         # we keep only a certain percentage of the mass
         val, idx = torch.sort(attentions)
