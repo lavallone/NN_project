@@ -26,11 +26,8 @@ from torchvision import transforms as pth_transforms
 import numpy as np
 from PIL import Image
 
-import sys
-sys.path.append("../architectures")
-import vision_transformer as vits
-import hubconf as pretrained
-
+from architectures import vision_transformer as vits
+from architectures import hubconf as pretrained
 
 FOURCC = {
     "mp4": cv2.VideoWriter_fourcc(*"MP4V"),
@@ -50,41 +47,39 @@ class VideoGenerator:
             print(f"Provided input path {self.args.input_path} is non valid.")
             sys.exit(1)
         else:
-            if self.args.mode == "extract":
-                self.extract_frames_from_video(self.args.input_path, self.args.output_path)
-            elif self.args.mode == "generate":
-                self.generate_video_from_images(self.args.input_path, self.args.output_path)
-            else:
-                # If input path exists
-                if os.path.exists(self.args.input_path):
+            # If input path exists
+            if os.path.exists(self.args.input_path):
+                if self.args.mode == "extract":
                     # If input is a video file
                     if os.path.isfile(self.args.input_path):
-                        frames_folder = os.path.join(self.args.output_path, "frames") # we create a frame folder
-                        attention_folder = os.path.join(self.args.output_path, "attention") # we create a folder for the computed attention features of each frame
-
-                        # if they don't exist, create them
+                        frames_folder = os.path.join(self.args.output_path, "frames")
                         os.makedirs(frames_folder, exist_ok=True)
-                        os.makedirs(attention_folder, exist_ok=True)
-
                         self.extract_frames_from_video(self.args.input_path, frames_folder)
-
-                        self.compute_attentions(frames_folder, attention_folder)
-
-                        self.generate_video_from_images(attention_folder, self.args.output_path)
-
+                    else:
+                        print(f"Provided input path {self.args.input_path} isn't a video file.")
+                        sys.exit(1)
+                
+                elif self.args.mode == "compute":
                     # If input is a folder of already extracted frames
                     if os.path.isdir(self.args.input_path): 
                         attention_folder = os.path.join(self.args.output_path, "attention")
                         os.makedirs(attention_folder, exist_ok=True)
-                        
                         self.compute_attentions(self.args.input_path, attention_folder)
-                        
-                        self.generate_video_from_images(attention_folder, self.args.output_path)
-
-                # If input path doesn't exists
-                else:
-                    print(f"Provided input path {self.args.input_path} doesn't exists.")
-                    sys.exit(1)
+                    else:
+                        print(f"Provided input path {self.args.input_path} isn't folder of frames.")
+                        sys.exit(1)
+                
+                elif self.args.mode == "generate":
+                    # If input is a folder of already extracted frames
+                    if os.path.isdir(self.args.input_path):
+                        self.generate_video_from_images(self.args.input_path, self.args.output_path)
+                    else:
+                        print(f"Provided input path {self.args.input_path} isn't folder of frames.")
+                        sys.exit(1)
+            # If input path doesn't exists
+            else:
+                print(f"Provided input path {self.args.input_path} doesn't exists.")
+                sys.exit(1)
 
     def extract_frames_from_video(self, inp: str, out: str):
         vidcap = cv2.VideoCapture(inp)
@@ -259,10 +254,6 @@ def parse_args():
         help="""Apply a resize transformation to input image(s). Use if OOM error.
             Usage (single or W H): --resize 512, --resize 720 1280""",
     )
-    parser.add_argument("--video_only", action="store_true", # da capire meglio !!!!!! 
-        help="""Use this flag if you only want to generate a video and not all attention images.
-            If used, --input_path must be set to the folder of attention images. Ex: ./attention/""",
-    )
     parser.add_argument("--fps", default=20.0, type=float, help="FPS of input / output video. Automatically set if you extract frames from a video.",)
     parser.add_argument("--video_format", default="mp4", type=str, choices=["mp4", "avi"], help="Format of generated video (mp4 or avi).",)
 
@@ -272,10 +263,4 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     vg = VideoGenerator(args)
-    if args.mode == "extract":
-        
-    elif args.mode == "generate":
-        
-    elif args.mode == "compute":
-        
     vg.run()

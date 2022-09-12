@@ -21,10 +21,6 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-# capire  come importare nel migliore dei modi!
-import sys
-sys.path.append("../utils")
-import utils
 from utils import utils
 
 
