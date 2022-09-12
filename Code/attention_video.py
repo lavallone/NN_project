@@ -134,25 +134,16 @@ class VideoGenerator:
                 img = img.convert("RGB")
 
             if self.args.resize is not None:
-                transform = pth_transforms.Compose(
-                    [
-                        pth_transforms.ToTensor(),
-                        pth_transforms.Resize(self.args.resize),
-                        pth_transforms.Normalize(
-                            (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
-                        ),
-                    ]
-                )
+                transform = pth_transforms.Compose([
+                    pth_transforms.Resize(self.args.resize),
+                    pth_transforms.ToTensor(),
+                    pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+                ])
             else:
-                transform = pth_transforms.Compose(
-                    [
-                        pth_transforms.ToTensor(),
-                        pth_transforms.Normalize(
-                            (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
-                        ),
-                    ]
-                )
-
+                transform = pth_transforms.Compose([
+                    pth_transforms.ToTensor(),
+                    pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+                ])
             img = transform(img)
 
             # make the image divisible by the patch size
@@ -165,6 +156,7 @@ class VideoGenerator:
             w_featmap = img.shape[-2] // self.args.patch_size
             h_featmap = img.shape[-1] // self.args.patch_size
 
+            print(DEVICE)
             attentions = self.model.get_last_selfattention(img.to(DEVICE))
 
             nh = attentions.shape[1]  # number of head
