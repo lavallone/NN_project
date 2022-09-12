@@ -40,6 +40,7 @@ class VideoGenerator:
     def __init__(self, args):
         self.args = args
         if args.mode == "compute":
+            print("£££££££££££££££££££££££££££££££££££££££££££££££££££££££")
             self.model = self.load_model()
             print("#####################à")
             print(next(self.model.parameters()).is_cuda)
