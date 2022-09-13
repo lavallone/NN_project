@@ -101,7 +101,7 @@ def eval_linear(args):
     # set optimizer
     optimizer = torch.optim.SGD(
         linear_classifier.parameters(),
-        args.lr * (args.batch_size_per_gpu * utils.get_world_size()) / 256., # linear scaling rule
+        args.lr * (args.batch_size_per_gpu * par.get_world_size()) / 256., # linear scaling rule
         momentum=0.9,
         weight_decay=0, # we do not apply weight decay
     )
