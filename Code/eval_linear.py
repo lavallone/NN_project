@@ -14,6 +14,7 @@
 import os
 import argparse
 import sys
+import json
 from pathlib import Path
 
 import torch
@@ -73,9 +74,120 @@ def eval_linear(args):
         pin_memory=True,
     )
 
-    utils.load_pretrained_linear_weights(linear_classifier, args.arch, args.patch_size) # we load the PRETRAINED weights of linear classifier
-    test_stats = validate_network(test_loader, model, linear_classifier, args.n_last_blocks, args.avgpool_patchtokens)
-    print(f"Accuracy of the network on the {len(dataset_test)} test images: {test_stats['acc1']:.1f}%")
+    ############# ----------WE CANNOT USE THEM BECAUSE THEIR SIZE IS 1000, AND WE'RE DEALING WITH FEWER CLASSES !!!------------- #############
+    #utils.load_pretrained_linear_weights(linear_classifier, args.arch, args.patch_size) # we load the PRETRAINED weights of linear classifier
+    #test_stats = validate_network(test_loader, model, linear_classifier, args.n_last_blocks, args.avgpool_patchtokens)
+    #print(f"Accuracy of the network on the {len(dataset_test)} test images: {test_stats['acc1']:.1f}%")
+    ############# -------------------------------------------------------------------------------------------------------------- #############
+
+    # Let's start the linear layers training
+    train_transform = pth_transforms.Compose([
+        pth_transforms.RandomResizedCrop(224),
+        pth_transforms.RandomHorizontalFlip(),
+        pth_transforms.ToTensor(),
+        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    ])
+    dataset_train = datasets.ImageFolder(os.path.join(args.data_path, "train"), transform=train_transform)
+    sampler = torch.utils.data.distributed.DistributedSampler(dataset_train)
+    train_loader = torch.utils.data.DataLoader(
+        dataset_train,
+        sampler=sampler,
+        batch_size=args.batch_size_per_gpu,
+        num_workers=args.num_workers,
+        pin_memory=True,
+    )
+    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
+
+    # set optimizer
+    optimizer = torch.optim.SGD(
+        linear_classifier.parameters(),
+        args.lr * (args.batch_size_per_gpu * utils.get_world_size()) / 256., # linear scaling rule
+        momentum=0.9,
+        weight_decay=0, # we do not apply weight decay
+    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, args.epochs, eta_min=0)
+
+    # Optionally resume from a checkpoint
+    to_restore = {"epoch": 0, "best_acc": 0.}
+    utils.restart_from_checkpoint(
+        os.path.join(args.output_dir, "linear_checkpoint.pth"),
+        run_variables=to_restore,
+        state_dict=linear_classifier,
+        optimizer=optimizer,
+        scheduler=scheduler,
+    )
+    start_epoch = to_restore["epoch"]
+    best_acc = to_restore["best_acc"]
+
+    for epoch in range(start_epoch, args.epochs):
+        train_loader.sampler.set_epoch(epoch)
+
+        train_stats = train(model, linear_classifier, optimizer, train_loader, epoch, args.n_last_blocks, args.avgpool_patchtokens)
+        scheduler.step()
+
+        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()}, 'epoch': epoch}
+        if epoch % args.val_freq == 0 or epoch == args.epochs - 1:
+            test_stats = validate_network(test_loader, model, linear_classifier, args.n_last_blocks, args.avgpool_patchtokens)
+            print(f"Accuracy at epoch {epoch} of the network on the {len(dataset_test)} test images: {test_stats['acc1']:.1f}%")
+            best_acc = max(best_acc, test_stats["acc1"])
+            print(f'Max accuracy so far: {best_acc:.2f}%')
+            log_stats = {**{k: v for k, v in log_stats.items()}, **{f'test_{k}': v for k, v in test_stats.items()}}
+        if par.is_main_process():
+            with (Path(args.output_dir) / "log.txt").open("a") as f:
+                f.write(json.dumps(log_stats) + "\n")
+            save_dict = {
+                "epoch": epoch + 1,
+                "state_dict": linear_classifier.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+                "best_acc": best_acc,
+            }
+            torch.save(save_dict, os.path.join(args.output_dir, "checkpoint.pth.tar"))
+            
+    print("Training of the supervised linear classifier on frozen features completed.\n"
+                "Top-1 test accuracy: {acc:.1f}".format(acc=best_acc))
+
+
+def train(model, linear_classifier, optimizer, loader, epoch, n, avgpool):
+    linear_classifier.train()
+    metric_logger = utils.MetricLogger(delimiter="  ")
+    metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
+    header = 'Epoch: [{}]'.format(epoch)
+    for (inp, target) in metric_logger.log_every(loader, 20, header):
+        # move to gpu
+        inp = inp.cuda(non_blocking=True)
+        target = target.cuda(non_blocking=True)
+
+        # forward
+        with torch.no_grad():
+            if "vit" in args.arch:
+                intermediate_output = model.get_intermediate_layers(inp, n)
+                output = torch.cat([x[:, 0] for x in intermediate_output], dim=-1)
+                if avgpool:
+                    output = torch.cat((output.unsqueeze(-1), torch.mean(intermediate_output[-1][:, 1:], dim=1).unsqueeze(-1)), dim=-1)
+                    output = output.reshape(output.shape[0], -1)
+            else:
+                output = model(inp)
+        output = linear_classifier(output)
+
+        # compute cross entropy loss
+        loss = nn.CrossEntropyLoss()(output, target)
+
+        # compute the gradients
+        optimizer.zero_grad()
+        loss.backward()
+
+        # step
+        optimizer.step()
+
+        # log 
+        torch.cuda.synchronize()
+        metric_logger.update(loss=loss.item())
+        metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+    # gather the stats from all processes
+    metric_logger.synchronize_between_processes()
+    print("Averaged stats:", metric_logger)
+    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 @torch.no_grad()
 def validate_network(test_loader, model, linear_classifier, n, avgpool):
@@ -160,6 +272,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', default='/path/to/imagenet/', type=str)
     parser.add_argument('--num_workers', default=10, type=int, help='Number of data loading workers per GPU.')
     parser.add_argument('--val_freq', default=1, type=int, help="Epoch frequency for validation.")
+    parser.add_argument('--output_dir', default=".", help='Path to save logs and checkpoints')
     parser.add_argument('--num_labels', default=50, type=int, help='Number of labels for linear classifier') # we're going to use a subset of ImageNet --> 100 or 50 classes
     args = parser.parse_args()
     
