@@ -96,7 +96,7 @@ def eval_linear(args):
         num_workers=args.num_workers,
         pin_memory=True,
     )
-    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
+    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_test)} val imgs.")
 
     # set optimizer
     optimizer = torch.optim.SGD(
