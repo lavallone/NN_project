@@ -160,7 +160,7 @@ if __name__ == '__main__':
     parser.add_argument('--data_path', default='/path/to/imagenet/', type=str)
     parser.add_argument('--num_workers', default=10, type=int, help='Number of data loading workers per GPU.')
     parser.add_argument('--val_freq', default=1, type=int, help="Epoch frequency for validation.")
-    parser.add_argument('--num_labels', default=50, type=int, help='Number of labels for linear classifier')
+    parser.add_argument('--num_labels', default=50, type=int, help='Number of labels for linear classifier') # we're going to use a subset of ImageNet --> 100 or 50 classes
     args = parser.parse_args()
     
     eval_linear(args)
