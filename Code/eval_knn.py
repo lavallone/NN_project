@@ -32,7 +32,8 @@ class ReturnIndexDataset(datasets.ImageFolder):
     def __getitem__(self, idx):
         img, _ = super(ReturnIndexDataset, self).__getitem__(idx)
         return img, idx
-
+    
+    
 def extract_feature_pipeline(args):
     # ============ preparing data ... ============
     transform = pth_transforms.Compose([
@@ -41,8 +42,8 @@ def extract_feature_pipeline(args):
         pth_transforms.ToTensor(),
         pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
-    dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "train"), transform=transform)
-    dataset_val = ReturnIndexDataset(os.path.join(args.data_path, "val"), transform=transform)
+    dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "50_train"), transform=transform)
+    dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
     sampler = torch.utils.data.DistributedSampler(dataset_train, shuffle=False)
     data_loader_train = torch.utils.data.DataLoader(
         dataset_train,
@@ -52,14 +53,14 @@ def extract_feature_pipeline(args):
         pin_memory=True,
         drop_last=False,
     )
-    data_loader_val = torch.utils.data.DataLoader(
-        dataset_val,
+    data_loader_test = torch.utils.data.DataLoader(
+        dataset_test,
         batch_size=args.batch_size_per_gpu,
         num_workers=args.num_workers,
         pin_memory=True,
         drop_last=False,
     )
-    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_val)} val imgs.")
+    print(f"Data loaded with {len(dataset_train)} train and {len(dataset_test)} test imgs.")
 
     # ============ building network ... ============
     if "vit" in args.arch:
@@ -78,15 +79,15 @@ def extract_feature_pipeline(args):
     # ============ extract features ... ============
     print("Extracting features for train set...")
     train_features = extract_features(model, data_loader_train, args.use_cuda)
-    print("Extracting features for val set...")
-    test_features = extract_features(model, data_loader_val, args.use_cuda)
+    print("Extracting features for test set...")
+    test_features = extract_features(model, data_loader_test, args.use_cuda)
 
     if par.get_rank() == 0:
         train_features = nn.functional.normalize(train_features, dim=1, p=2)
         test_features = nn.functional.normalize(test_features, dim=1, p=2)
 
     train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
-    test_labels = torch.tensor([s[-1] for s in dataset_val.samples]).long()
+    test_labels = torch.tensor([s[-1] for s in dataset_test.samples]).long()
     # save features and labels
     if args.dump_features and dist.get_rank() == 0:
         torch.save(train_features.cpu(), os.path.join(args.dump_features, "train_feat.pth"))

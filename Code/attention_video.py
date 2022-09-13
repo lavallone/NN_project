@@ -182,7 +182,7 @@ class VideoGenerator:
             fname = os.path.join(out, "attn_" + os.path.basename(img_path))
             plt.imsave(fname=fname, arr=sum(attentions[i] * 1 / attentions.shape[0] for i in range(attentions.shape[0])), cmap="inferno", format="jpg",)
 
-            print("Done!")
+        print("\nDone!")
 
     def load_model(self):
         

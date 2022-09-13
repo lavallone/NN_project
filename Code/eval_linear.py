@@ -14,6 +14,7 @@
 import os
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import torch
@@ -25,12 +26,12 @@ from torchvision import transforms as pth_transforms
 from torchvision import models as torchvision_models
 
 from utils import utils
+from parallel import utils as par
 from architectures import vision_transformer as vits
 
 
 def eval_linear(args):
-    utils.init_distributed_mode(args)
-    print("git:\n  {}\n".format(utils.get_sha()))
+    par.init_distributed_mode(args)
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
 
@@ -39,10 +40,6 @@ def eval_linear(args):
     if args.arch in vits.__dict__.keys():
         model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
         embed_dim = model.embed_dim * (args.n_last_blocks + int(args.avgpool_patchtokens))
-    # if the network is a XCiT
-    elif "xcit" in args.arch:
-        model = torch.hub.load('facebookresearch/xcit:main', args.arch, num_classes=0)
-        embed_dim = model.embed_dim
     # otherwise, we check if the architecture is in torchvision models
     elif args.arch in torchvision_models.__dict__.keys():
         model = torchvision_models.__dict__[args.arch]()
@@ -51,6 +48,7 @@ def eval_linear(args):
     else:
         print(f"Unknow architecture: {args.arch}")
         sys.exit(1)
+        
     model.cuda()
     model.eval()
     # load weights to evaluate
@@ -76,12 +74,13 @@ def eval_linear(args):
         pin_memory=True,
     )
 
-    if args.evaluate:
+    if args.evaluate: # if we just want to evaluate our DINO framework on a PRETRAINED linear classifier
         utils.load_pretrained_linear_weights(linear_classifier, args.arch, args.patch_size)
         test_stats = validate_network(val_loader, model, linear_classifier, args.n_last_blocks, args.avgpool_patchtokens)
         print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
         return
 
+    # else --> we train the linear_classifier part
     train_transform = pth_transforms.Compose([
         pth_transforms.RandomResizedCrop(224),
         pth_transforms.RandomHorizontalFlip(),
@@ -126,16 +125,16 @@ def eval_linear(args):
         train_stats = train(model, linear_classifier, optimizer, train_loader, epoch, args.n_last_blocks, args.avgpool_patchtokens)
         scheduler.step()
 
-        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                     'epoch': epoch}
-        if epoch % args.val_freq == 0 or epoch == args.epochs - 1:
+        log_stats = {**{f'train_{k}': v for k, v in train_stats.items()}, 'epoch': epoch}
+        
+        if epoch % args.val_freq == 0 or epoch == args.epochs - 1: # we evaluatethe model at each "val_freq" steps
             test_stats = validate_network(val_loader, model, linear_classifier, args.n_last_blocks, args.avgpool_patchtokens)
             print(f"Accuracy at epoch {epoch} of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
             best_acc = max(best_acc, test_stats["acc1"])
             print(f'Max accuracy so far: {best_acc:.2f}%')
-            log_stats = {**{k: v for k, v in log_stats.items()},
-                         **{f'test_{k}': v for k, v in test_stats.items()}}
-        if utils.is_main_process():
+            log_stats = {**{k: v for k, v in log_stats.items()}, **{f'test_{k}': v for k, v in test_stats.items()}}
+        
+        if par.is_main_process():
             with (Path(args.output_dir) / "log.txt").open("a") as f:
                 f.write(json.dumps(log_stats) + "\n")
             save_dict = {
@@ -145,12 +144,14 @@ def eval_linear(args):
                 "scheduler": scheduler.state_dict(),
                 "best_acc": best_acc,
             }
-            torch.save(save_dict, os.path.join(args.output_dir, "checkpoint.pth.tar"))
+            torch.save(save_dict, os.path.join(args.output_dir, "checkpoint.pth"))
+            
     print("Training of the supervised linear classifier on frozen features completed.\n"
                 "Top-1 test accuracy: {acc:.1f}".format(acc=best_acc))
 
 
 def train(model, linear_classifier, optimizer, loader, epoch, n, avgpool):
+    
     linear_classifier.train()
     metric_logger = utils.MetricLogger(delimiter="  ")
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
@@ -205,7 +206,7 @@ def validate_network(val_loader, model, linear_classifier, n, avgpool):
         # forward
         with torch.no_grad():
             if "vit" in args.arch:
-                intermediate_output = model.get_intermediate_layers(inp, n)
+                intermediate_output = model.get_intermediate_layers(inp, n) # we took the intermediate weights of the ViT
                 output = torch.cat([x[:, 0] for x in intermediate_output], dim=-1)
                 if avgpool:
                     output = torch.cat((output.unsqueeze(-1), torch.mean(intermediate_output[-1][:, 1:], dim=1).unsqueeze(-1)), dim=-1)
@@ -218,13 +219,14 @@ def validate_network(val_loader, model, linear_classifier, n, avgpool):
         if linear_classifier.module.num_labels >= 5:
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
         else:
-            acc1, = utils.accuracy(output, target, topk=(1,))
+            acc1 = utils.accuracy(output, target, topk=(1,))
 
         batch_size = inp.shape[0]
         metric_logger.update(loss=loss.item())
         metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
         if linear_classifier.module.num_labels >= 5:
             metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
+            
     if linear_classifier.module.num_labels >= 5:
         print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
           .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
@@ -246,7 +248,6 @@ class LinearClassifier(nn.Module):
     def forward(self, x):
         # flatten
         x = x.view(x.size(0), -1)
-
         # linear layer
         return self.linear(x)
 
@@ -277,7 +278,7 @@ if __name__ == '__main__':
     parser.add_argument('--val_freq', default=1, type=int, help="Epoch frequency for validation.")
     parser.add_argument('--output_dir', default=".", help='Path to save logs and checkpoints')
     parser.add_argument('--num_labels', default=1000, type=int, help='Number of labels for linear classifier')
-    parser.add_argument('--evaluate', dest='evaluate', action='store_true', help='evaluate model on validation set')
+    parser.add_argument('--evaluate', dest='evaluate', action='store_true', help='evaluate model on validation set and using pretrained linear weights.')
     args = parser.parse_args()
     
     eval_linear(args)
