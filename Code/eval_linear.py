@@ -87,7 +87,7 @@ def eval_linear(args):
         pth_transforms.ToTensor(),
         pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
-    dataset_train = datasets.ImageFolder(os.path.join(args.data_path, "train"), transform=train_transform)
+    dataset_train = datasets.ImageFolder(os.path.join(args.data_path, "50_train"), transform=train_transform)
     sampler = torch.utils.data.distributed.DistributedSampler(dataset_train)
     train_loader = torch.utils.data.DataLoader(
         dataset_train,
