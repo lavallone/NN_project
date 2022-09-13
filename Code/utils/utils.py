@@ -124,7 +124,7 @@ def load_pretrained_linear_weights(linear_classifier, model_name, patch_size):
 
 def clip_gradients(model, clip):
     norms = []
-    for name, p in model.named_parameters():
+    for _, p in model.named_parameters():
         if p.grad is not None:
             param_norm = p.grad.data.norm(2)
             norms.append(param_norm.item())
@@ -641,7 +641,7 @@ def compute_map(ranks, gnd, kappas=[]):
     Computes the mAP for a given set of returned results.
          Usage:
            map = compute_map (ranks, gnd)
-                 computes mean average precsion (map) only
+                 computes mean average precision (map) only
            map, aps, pr, prs = compute_map (ranks, gnd, kappas)
                  computes mean average precision (map), average precision (aps) for each query
                  computes mean precision at kappas (pr), precision at kappas (prs) for each query
