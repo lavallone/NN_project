@@ -247,7 +247,10 @@ class LinearClassifier(nn.Module):
         # linear layer
         return self.linear(x)
 
-
+###############################################################################################################
+# For the purpose of the NN_project we decided to not use this evaluation metrics for proving the goodness of #
+# DINO framework, especially because it requires a "honest" amount of additional training.                    #
+###############################################################################################################
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser('Evaluation with linear classification on ImageNet')

@@ -26,6 +26,7 @@ from PIL import Image, ImageFile
 import numpy as np
 
 from utils import utils
+from parallel import utils as par
 from architectures import vision_transformer as vits
 from eval_knn import extract_features
 
@@ -70,17 +71,15 @@ class OxfordParisDataset(torch.utils.data.Dataset):
             img = self.transform(img)
         return img, index
 
-
 def config_imname(cfg, i):
     return os.path.join(cfg['dir_images'], cfg['imlist'][i] + cfg['ext'])
-
 
 def config_qimname(cfg, i):
     return os.path.join(cfg['dir_images'], cfg['qimlist'][i] + cfg['qext'])
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser('Image Retrieval on revisited Paris and Oxford')
+    parser = argparse.ArgumentParser('Image Retrieval on revisited Paris and Oxford datasets')
     parser.add_argument('--data_path', default='/path/to/revisited_paris_oxford/', type=str)
     parser.add_argument('--dataset', default='roxford5k', type=str, choices=['roxford5k', 'rparis6k'])
     parser.add_argument('--multiscale', default=False, type=utils.bool_flag)
@@ -97,8 +96,7 @@ if __name__ == '__main__':
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
     args = parser.parse_args()
 
-    utils.init_distributed_mode(args)
-    print("git:\n  {}\n".format(utils.get_sha()))
+    par.init_distributed_mode(args)
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
     cudnn.benchmark = True
 
@@ -131,8 +129,6 @@ if __name__ == '__main__':
     if "vit" in args.arch:
         model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
         print(f"Model {args.arch} {args.patch_size}x{args.patch_size} built.")
-    elif "xcit" in args.arch:
-        model = torch.hub.load('facebookresearch/xcit:main', args.arch, num_classes=0)
     elif args.arch in torchvision_models.__dict__.keys():
         model = torchvision_models.__dict__[args.arch](num_classes=0)
     else:
@@ -165,7 +161,7 @@ if __name__ == '__main__':
     train_features = extract_features(model, data_loader_train, args.use_cuda, multiscale=args.multiscale)
     query_features = extract_features(model, data_loader_query, args.use_cuda, multiscale=args.multiscale)
 
-    if utils.get_rank() == 0:  # only rank 0 will work from now on
+    if par.get_rank() == 0:  # only rank 0 will work from now on
         # normalize features
         train_features = nn.functional.normalize(train_features, dim=1, p=2)
         query_features = nn.functional.normalize(query_features, dim=1, p=2)
