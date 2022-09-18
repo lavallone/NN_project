@@ -241,6 +241,8 @@ if __name__ == '__main__':
     dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "50_train"), transform=transform)
     dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
     print(numpy.array(dataset_train.samples).shape)
+    print(dataset_train.samples[0][0])
+    print(dataset_train.samples[0][1])
 
     if par.get_rank() == 0:
         if args.use_cuda:
