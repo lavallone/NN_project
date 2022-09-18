@@ -240,7 +240,6 @@ if __name__ == '__main__':
     ])
     dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "50_train"), transform=transform)
     dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
-    print(dataset_train.samples)
     print(dataset_train.samples.shape)
 
     if par.get_rank() == 0:
