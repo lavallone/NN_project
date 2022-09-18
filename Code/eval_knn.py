@@ -25,7 +25,8 @@ from torchvision import models as torchvision_models
 from utils import utils
 from parallel import utils as par
 from architectures import vision_transformer as vits
-
+from torch.utils.tensorboard import SummaryWriter
+import pathlib
 
 class ReturnIndexDataset(datasets.ImageFolder):
     def __getitem__(self, idx):
@@ -230,6 +231,8 @@ if __name__ == '__main__':
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
 
     if args.tensorboard_visualization:
+        logging_path = pathlib.Path("'/content/tensorboard_image_features_logs/")
+        writer = SummaryWriter(logging_path)
         transform = pth_transforms.Compose([
             pth_transforms.Resize(256, interpolation=3),
             pth_transforms.CenterCrop(224),
@@ -242,8 +245,9 @@ if __name__ == '__main__':
         for img, _ in data_loader_test:
             imgs.append(((img * 0.224) + 0.45).cpu())
         imgs = torch.cat(imgs, dim=0)
-        
         test_labels = test_labels.tolist()
+        
+        writer.add_embedding(test_features, metadata=test_labels, label_img=imgs, tag="embeddings")
 
     if par.get_rank() == 0:
         if args.use_cuda:
