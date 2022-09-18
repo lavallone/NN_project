@@ -26,6 +26,8 @@ from utils import utils
 from parallel import utils as par
 from architectures import vision_transformer as vits
 from torch.utils.tensorboard import SummaryWriter
+import tensorflow as tf
+import tensorboard as tb
 
 class ReturnIndexDataset(datasets.ImageFolder):
     def __getitem__(self, idx):
@@ -230,6 +232,7 @@ if __name__ == '__main__':
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
 
     if args.tensorboard_visualization:
+        tf.io.gfile = tb.compat.tensorflow_stub.io.gfile
         log_dir='/content/tensorboard_image_features_logs/'
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
