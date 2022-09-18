@@ -104,7 +104,6 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
     features = None
     for samples, index in metric_logger.log_every(data_loader, 10):
         print(samples.shape)
-        print(index)
         break
         samples = samples.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
