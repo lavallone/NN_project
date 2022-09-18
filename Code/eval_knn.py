@@ -243,6 +243,8 @@ if __name__ == '__main__':
     print(len(dataset_train.samples))
     print(len(dataset_train.samples[0]))
     print(len(dataset_train.samples[0][0]))
+    print(len(dataset_train.samples[0][0][0]))
+    print(len(dataset_train.samples[0][0][0][0]))
 
     if par.get_rank() == 0:
         if args.use_cuda:
