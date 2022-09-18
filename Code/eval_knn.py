@@ -241,9 +241,9 @@ if __name__ == '__main__':
         imgs = []
         for img, _ in data_loader_test:
             imgs.append(((img * 0.224) + 0.45).cpu())
+        imgs = torch.cat(imgs, dim=0)
         
-        print(type(test_features))
-        print(type(test_labels))
+        test_labels = test_labels.tolist()
 
     if par.get_rank() == 0:
         if args.use_cuda:
