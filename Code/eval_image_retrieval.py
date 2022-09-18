@@ -38,6 +38,7 @@ class OxfordParisDataset(torch.utils.data.Dataset):
 
         # loading imlist, qimlist, and gnd, in cfg as a dict
         gnd_fname = os.path.join(dir_main, dataset, 'gnd_{}.pkl'.format(dataset))
+        # we load the config file '.pkl' ...
         with open(gnd_fname, 'rb') as f:
             cfg = pickle.load(f)
         cfg['gnd_fname'] = gnd_fname
@@ -173,11 +174,11 @@ if __name__ == '__main__':
 
         ############################################################################
         # Step 3: evaluate
-        gnd = dataset_train.cfg['gnd']
+        gnd = dataset_train.cfg['gnd'] # 'gnd' stands for ground_truth?
         # evaluate ranks
-        ks = [1, 5, 10]
+        ks = [1, 5, 10] # kappas
         # search for easy & hard
-        gnd_t = []
+        gnd_t = [] # list of dictionaries
         for i in range(len(gnd)):
             g = {}
             g['ok'] = np.concatenate([gnd[i]['easy'], gnd[i]['hard']])
@@ -191,7 +192,13 @@ if __name__ == '__main__':
             g['ok'] = np.concatenate([gnd[i]['hard']])
             g['junk'] = np.concatenate([gnd[i]['junk'], gnd[i]['easy']])
             gnd_t.append(g)
+            
+        # What we compute:
+        # - mean average precision (map)
+        # - average precision (aps) for each query
+        # - mean precision at kappas (pr) --> mpr
+        # - precision at kappas (prs) for each query
         mapH, apsH, mprH, prsH = utils.compute_map(ranks, gnd_t, ks)
-        print('>> {}: mAP M: {}, H: {}'.format(args.dataset, np.around(mapM*100, decimals=2), np.around(mapH*100, decimals=2)))
-        print('>> {}: mP@k{} M: {}, H: {}'.format(args.dataset, np.array(ks), np.around(mprM*100, decimals=2), np.around(mprH*100, decimals=2)))
+        print('>> {}: mAP Medium: {}, High: {}'.format(args.dataset, np.around(mapM*100, decimals=2), np.around(mapH*100, decimals=2)))
+        print('>> {}: mP@k{} Medium: {}, High: {}'.format(args.dataset, np.array(ks), np.around(mprM*100, decimals=2), np.around(mprH*100, decimals=2)))
     dist.barrier()

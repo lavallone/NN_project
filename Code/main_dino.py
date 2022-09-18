@@ -117,7 +117,7 @@ def get_args_parser():
         Used for small local view cropping of multi-crop.""")
 
     # Misc
-    parser.add_argument('--data_path', default='/../../../ImageNette/train', type=str,
+    parser.add_argument('--data_path', default='data', type=str,
         help='Please specify path to the ImageNet training data.') # I simply need a folder with all the train images inside  
     parser.add_argument('--output_dir', default="checkpoints", type=str, help='Path to save logs and checkpoints.')
     parser.add_argument('--saveckp_freq', default=25, type=int, help='Save checkpoint every x epochs.')

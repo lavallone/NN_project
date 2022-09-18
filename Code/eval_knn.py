@@ -103,6 +103,9 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
     metric_logger = utils.MetricLogger(delimiter="  ")
     features = None
     for samples, index in metric_logger.log_every(data_loader, 10):
+        print(samples.shape())
+        print(index)
+        break
         samples = samples.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
         if multiscale:
@@ -235,7 +238,7 @@ if __name__ == '__main__':
             test_features = test_features.cuda()
             train_labels = train_labels.cuda()
             test_labels = test_labels.cuda()
-
+        return
         print("Features are ready!\nStart the k-NN classification.")
         for k in args.nb_knn:
             top1, top5 = knn_classifier(train_features, train_labels, test_features, test_labels, k, args.temperature)
