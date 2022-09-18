@@ -61,9 +61,7 @@ def extract_feature_pipeline(args):
         drop_last=False,
     )
     print(f"Data loaded with {len(dataset_train)} train and {len(dataset_test)} test imgs.")
-    print(dataset_test.classes)
-    print(dataset_test.class_to_idx)
-    return
+    
     # ============ building network ... ============
     if "vit" in args.arch:
         model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
@@ -89,6 +87,7 @@ def extract_feature_pipeline(args):
         test_features = nn.functional.normalize(test_features, dim=1, p=2)
 
     train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
+    print(train_labels)
     test_labels = torch.tensor([s[-1] for s in dataset_test.samples]).long()
     # save features and labels
     if args.dump_features and dist.get_rank() == 0:
