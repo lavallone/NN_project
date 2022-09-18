@@ -232,7 +232,16 @@ if __name__ == '__main__':
     
     print(train_labels[:2000])
     print(len(train_labels))
-
+    transform = pth_transforms.Compose([
+        pth_transforms.Resize(256, interpolation=3),
+        pth_transforms.CenterCrop(224),
+        pth_transforms.ToTensor(),
+        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    ])
+    dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "50_train"), transform=transform)
+    dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
+    print(dataset_train.samples)
+    print(dataset_train.samples.shape)
 
     if par.get_rank() == 0:
         if args.use_cuda:
