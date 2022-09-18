@@ -28,6 +28,7 @@ from architectures import vision_transformer as vits
 from torch.utils.tensorboard import SummaryWriter
 import tensorflow as tf
 import tensorboard as tb
+from tensorboard.plugins import projector
 
 class ReturnIndexDataset(datasets.ImageFolder):
     def __getitem__(self, idx):
@@ -246,12 +247,27 @@ if __name__ == '__main__':
         dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
         data_loader_test = torch.utils.data.DataLoader(dataset_test, batch_size=args.batch_size_per_gpu, num_workers=args.num_workers, pin_memory=True, drop_last=False)
         imgs = []
-        for img, _ in data_loader_test:
-            imgs.append(((img * 0.224) + 0.45).cpu())
+        #for img, _ in data_loader_test:
+        #    imgs.append(((img * 0.224) + 0.45).cpu())
         imgs = torch.cat(imgs, dim=0)
         test_labels = test_labels.tolist()
-        
-        writer.add_embedding(test_features, metadata=test_labels, label_img=imgs, tag="embeddings")
+        with open(os.path.join(log_dir, 'metadata.tsv'), "w") as f:
+            for label in test_labels:
+                f.write("{}\n".format(label))
+
+        # Create a checkpoint from embedding, the filename and key are the
+        # name of the tensor.
+        checkpoint = tf.train.Checkpoint(embedding=test_features)
+        checkpoint.save(os.path.join(log_dir, "embedding.ckpt"))
+
+        # Set up config.
+        config = projector.ProjectorConfig()
+        embedding = config.embeddings.add()
+        # The name of the tensor will be suffixed by `/.ATTRIBUTES/VARIABLE_VALUE`.
+        embedding.tensor_name = "embedding/.ATTRIBUTES/VARIABLE_VALUE"
+        embedding.metadata_path = 'metadata.tsv'
+        projector.visualize_embeddings(log_dir, config)
+        #writer.add_embedding(test_features, metadata=test_labels, label_img=imgs, tag="embeddings")
 
     if par.get_rank() == 0:
         if args.use_cuda:
