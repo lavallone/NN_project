@@ -22,7 +22,7 @@ import torch.backends.cudnn as cudnn
 from torchvision import datasets
 from torchvision import transforms as pth_transforms
 from torchvision import models as torchvision_models
-
+import numpy
 from utils import utils
 from parallel import utils as par
 from architectures import vision_transformer as vits
@@ -240,7 +240,7 @@ if __name__ == '__main__':
     ])
     dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "50_train"), transform=transform)
     dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
-    print(torch.tensor(dataset_train.samples).shape)
+    print(numpy.array(dataset_train.samples).shape)
 
     if par.get_rank() == 0:
         if args.use_cuda:
