@@ -22,7 +22,6 @@ import torch.backends.cudnn as cudnn
 from torchvision import datasets
 from torchvision import transforms as pth_transforms
 from torchvision import models as torchvision_models
-import numpy
 from utils import utils
 from parallel import utils as par
 from architectures import vision_transformer as vits
@@ -86,7 +85,7 @@ def extract_feature_pipeline(args):
         train_features = nn.functional.normalize(train_features, dim=1, p=2)
         test_features = nn.functional.normalize(test_features, dim=1, p=2)
 
-    train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
+    train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long() # that's because the field '.samples' returns a list of ["image_path", class_id]
     test_labels = torch.tensor([s[-1] for s in dataset_test.samples]).long()
     # save features and labels
     if args.dump_features and dist.get_rank() == 0:
@@ -214,6 +213,7 @@ if __name__ == '__main__':
         distributed training; see https://pytorch.org/docs/stable/distributed.html""")
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
     parser.add_argument('--data_path', default='/path/to/imagenet/', type=str)
+    parser.add_argument('--tensorboard_visualization', default=False, type=utils.bool_flag)
     args = parser.parse_args()
 
     par.init_distributed_mode(args)
@@ -229,20 +229,21 @@ if __name__ == '__main__':
         # need to extract features !
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
 
-    
-    print(train_labels[:2000])
-    print(len(train_labels))
-    transform = pth_transforms.Compose([
-        pth_transforms.Resize(256, interpolation=3),
-        pth_transforms.CenterCrop(224),
-        pth_transforms.ToTensor(),
-        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-    ])
-    dataset_train = ReturnIndexDataset(os.path.join(args.data_path, "50_train"), transform=transform)
-    dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
-    print(numpy.array(dataset_train.samples).shape)
-    print(dataset_train.samples[0][0])
-    print(dataset_train.samples[0][1])
+    if args.tensorboard_visualization:
+        transform = pth_transforms.Compose([
+            pth_transforms.Resize(256, interpolation=3),
+            pth_transforms.CenterCrop(224),
+            pth_transforms.ToTensor(),
+            pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        ])
+        dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
+        data_loader_test = torch.utils.data.DataLoader(dataset_test, batch_size=args.batch_size_per_gpu, num_workers=args.num_workers, pin_memory=True, drop_last=False)
+        imgs = []
+        for img, _ in data_loader_test:
+            imgs.append(((img * 0.224) + 0.45).cpu())
+        
+        print(type(test_features))
+        print(type(test_labels))
 
     if par.get_rank() == 0:
         if args.use_cuda:
