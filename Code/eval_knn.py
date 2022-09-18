@@ -230,7 +230,7 @@ if __name__ == '__main__':
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
 
     
-    print(train_labels)
+    print(train_labels[:2000])
     print(len(train_labels))
 
 
