@@ -26,7 +26,6 @@ from utils import utils
 from parallel import utils as par
 from architectures import vision_transformer as vits
 from torch.utils.tensorboard import SummaryWriter
-import pathlib
 
 class ReturnIndexDataset(datasets.ImageFolder):
     def __getitem__(self, idx):
@@ -231,8 +230,10 @@ if __name__ == '__main__':
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
 
     if args.tensorboard_visualization:
-        logging_path = pathlib.Path("'/content/tensorboard_image_features_logs/")
-        writer = SummaryWriter(logging_path)
+        log_dir='/content/tensorboard_image_features_logs/'
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        writer = SummaryWriter(log_dir)
         transform = pth_transforms.Compose([
             pth_transforms.Resize(256, interpolation=3),
             pth_transforms.CenterCrop(224),
