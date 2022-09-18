@@ -249,7 +249,7 @@ if __name__ == '__main__':
         imgs = []
         #for img, _ in data_loader_test:
         #    imgs.append(((img * 0.224) + 0.45).cpu())
-        imgs = torch.cat(imgs, dim=0)
+        #imgs = torch.cat(imgs, dim=0)
         test_labels = test_labels.tolist()
         with open(os.path.join(log_dir, 'metadata.tsv'), "w") as f:
             for label in test_labels:
