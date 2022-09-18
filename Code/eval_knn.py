@@ -88,6 +88,7 @@ def extract_feature_pipeline(args):
 
     train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
     print(train_labels)
+    
     test_labels = torch.tensor([s[-1] for s in dataset_test.samples]).long()
     # save features and labels
     if args.dump_features and dist.get_rank() == 0:
