@@ -61,7 +61,9 @@ def extract_feature_pipeline(args):
         drop_last=False,
     )
     print(f"Data loaded with {len(dataset_train)} train and {len(dataset_test)} test imgs.")
-
+    print(dataset_test.classes)
+    print(dataset_test.class_to_idx)
+    return
     # ============ building network ... ============
     if "vit" in args.arch:
         model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
@@ -103,8 +105,6 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
     metric_logger = utils.MetricLogger(delimiter="  ")
     features = None
     for samples, index in metric_logger.log_every(data_loader, 10):
-        print(samples.shape)
-        break
         samples = samples.cuda(non_blocking=True)
         index = index.cuda(non_blocking=True)
         if multiscale:

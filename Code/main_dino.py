@@ -148,10 +148,6 @@ def train_dino(args):
         drop_last=True, # it drops the last incomplete batch (if the dataset size and the batch size doesn't fit)
     )
     print(f"Data loaded: there are {len(dataset)} images.")
-    print(dataset.classes)
-    print(dataset.class_to_idx)
-    print(dataset.imgs)
-    return
 
     # ============ building student and teacher networks ... ============
     # we changed the name DeiT-S for ViT-S to avoid confusions
