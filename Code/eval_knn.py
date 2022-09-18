@@ -87,8 +87,6 @@ def extract_feature_pipeline(args):
         test_features = nn.functional.normalize(test_features, dim=1, p=2)
 
     train_labels = torch.tensor([s[-1] for s in dataset_train.samples]).long()
-    print(train_labels)
-    
     test_labels = torch.tensor([s[-1] for s in dataset_test.samples]).long()
     # save features and labels
     if args.dump_features and dist.get_rank() == 0:
@@ -230,6 +228,11 @@ if __name__ == '__main__':
     else:
         # need to extract features !
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
+
+    
+    print(train_labels)
+    print(len(train_labels))
+
 
     if par.get_rank() == 0:
         if args.use_cuda:
