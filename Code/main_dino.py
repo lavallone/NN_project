@@ -160,9 +160,6 @@ def train_dino(args):
         )
         teacher = vits.__dict__[args.arch](patch_size=args.patch_size)
         embed_dim = student.embed_dim
-        print("##################")
-        print(embed_dim)
-        print("##################")
     
     # otherwise, we check if the architecture is in torchvision models --> but it  won't happen easily
     elif args.arch in torchvision_models.__dict__.keys():
