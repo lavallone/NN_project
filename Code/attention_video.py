@@ -245,7 +245,7 @@ def parse_args():
         help="""Apply a resize transformation to input image(s). Use if OOM error.
             Usage (single or W H): --resize 512, --resize 720 1280""",
     )
-    parser.add_argument("--fps", default=20.0, type=float, help="FPS of input / output video. Automatically set if you extract frames from a video.",)
+    parser.add_argument("--fps", default=25.0, type=float, help="FPS of input / output video. Automatically set if you extract frames from a video.",)
     parser.add_argument("--video_format", default="mp4", type=str, choices=["mp4", "avi"], help="Format of generated video (mp4 or avi).",)
 
     return parser.parse_args()
