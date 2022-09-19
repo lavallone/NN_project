@@ -124,7 +124,7 @@ def compute_attention(image_path, image_size, patch_size, model, threshold):
 
     attentions = model.get_last_selfattention(img.to(device))
 
-    nh = attentions.shape[1] # number of head
+    nh = attentions.shape[1] # number of heads
 
     # we keep only the output patch attention
     attentions = attentions[0, :, 0, 1:].reshape(nh, -1)
