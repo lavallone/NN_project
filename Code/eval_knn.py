@@ -25,11 +25,6 @@ from torchvision import models as torchvision_models
 from utils import utils
 from parallel import utils as par
 from architectures import vision_transformer as vits
-from torch.utils.tensorboard import SummaryWriter
-import tensorflow as tf
-import tensorboard as tb
-from tensorboard.plugins import projector
-import shutil
 
 class ReturnIndexDataset(datasets.ImageFolder):
     def __getitem__(self, idx):
@@ -67,7 +62,7 @@ def extract_feature_pipeline(args):
     
     # ============ building network ... ============
     if "vit" in args.arch:
-        model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
+        model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=50)
         print(f"Model {args.arch} {args.patch_size}x{args.patch_size} built.")
     elif args.arch in torchvision_models.__dict__.keys():
         model = torchvision_models.__dict__[args.arch](num_classes=0)
@@ -217,7 +212,6 @@ if __name__ == '__main__':
         distributed training; see https://pytorch.org/docs/stable/distributed.html""")
     parser.add_argument("--local_rank", default=0, type=int, help="Please ignore and do not set this argument.")
     parser.add_argument('--data_path', default='/path/to/imagenet/', type=str)
-    parser.add_argument('--tensorboard_visualization', default=False, type=utils.bool_flag)
     args = parser.parse_args()
 
     par.init_distributed_mode(args)
@@ -233,30 +227,6 @@ if __name__ == '__main__':
         # need to extract features !
         train_features, test_features, train_labels, test_labels = extract_feature_pipeline(args)
 
-    if args.tensorboard_visualization:
-        tf.io.gfile = tb.compat.tensorflow_stub.io.gfile
-        shutil.rmtree("/content/tensorboard_image_features_logs/")
-        log_dir='/content/tensorboard_image_features_logs/'
-        os.makedirs(log_dir)
-        writer = SummaryWriter(log_dir)
-        transform = pth_transforms.Compose([
-            pth_transforms.Resize(256, interpolation=3),
-            pth_transforms.CenterCrop(224),
-            pth_transforms.ToTensor(),
-            pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-        ])
-        dataset_test = ReturnIndexDataset(os.path.join(args.data_path, "50_test"), transform=transform)
-        data_loader_test = torch.utils.data.DataLoader(dataset_test, batch_size=args.batch_size_per_gpu, num_workers=args.num_workers, pin_memory=True, drop_last=False)
-        imgs = []
-        for img, _ in data_loader_test:
-            imgs.append(((img * 0.224) + 0.45).cpu())
-        imgs = torch.cat(imgs, dim=0)
-        test_labels = test_labels.tolist()
-        writer.add_embedding(test_features, metadata=test_labels, label_img=imgs)#, tag="embeddings")
-        writer.flush()
-        writer.close()
-        
-
     if par.get_rank() == 0:
         if args.use_cuda:
             train_features = train_features.cuda()
@@ -264,8 +234,8 @@ if __name__ == '__main__':
             train_labels = train_labels.cuda()
             test_labels = test_labels.cuda()
             
-        #print("Features are ready!\nStart the k-NN classification.")
-        #for k in args.nb_knn:
-        #    top1, top5 = knn_classifier(train_features, train_labels, test_features, test_labels, k, args.temperature)
-        #    print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
-    #dist.barrier()
+        print("Features are ready!\nStart the k-NN classification.")
+        for k in args.nb_knn:
+            top1, top5 = knn_classifier(train_features, train_labels, test_features, test_labels, k, args.temperature)
+            print(f"{k}-NN classifier result: Top1: {top1}, Top5: {top5}")
+    dist.barrier()
