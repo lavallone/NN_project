@@ -219,9 +219,12 @@ class VisionTransformer(nn.Module):
         for i, blk in enumerate(self.blocks):
             if i < len(self.blocks) - 1:
                 x = blk(x)
+                print(x.shape)
             else:
                 # return attention of the last block
-                return blk(x, return_attention=True)
+                x = blk(x, return_attention=True)
+                print(x.shape)
+                return x
 
     def get_intermediate_layers(self, x, n=1):
         x = self.prepare_tokens(x)
