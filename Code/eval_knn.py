@@ -107,8 +107,6 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
             feats = utils.multi_scale(samples, model)
         else:
             feats = model(samples).clone()
-            
-        print(feats.shape)
 
         # init storage feature matrix
         if dist.get_rank() == 0 and features is None:

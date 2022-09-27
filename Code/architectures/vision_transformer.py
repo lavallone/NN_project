@@ -210,7 +210,10 @@ class VisionTransformer(nn.Module):
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)
-        return x[:, 0]
+        print(x.shape)
+        x = x[:, 0]
+        print(x.shape)
+        return x
 
     def get_last_selfattention(self, x):
         print(x.shape)
