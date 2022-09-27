@@ -207,8 +207,10 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x):
         x = self.prepare_tokens(x)
+        print(x.shape)
         for blk in self.blocks:
             x = blk(x)
+            print(x.shape)
         x = self.norm(x)
         print(x.shape)
         x = x[:, 0]
