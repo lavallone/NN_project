@@ -122,6 +122,7 @@ def compute_attention(image_path, image_size, patch_size, model, threshold):
     w_featmap = img.shape[-2] // patch_size
     h_featmap = img.shape[-1] // patch_size
 
+    # It's the output of the last attention layer (without the MLP part)
     attentions = model.get_last_selfattention(img.to(device))
 
     nh = attentions.shape[1] # number of heads

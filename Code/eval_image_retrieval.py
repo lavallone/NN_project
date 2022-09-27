@@ -132,31 +132,35 @@ if __name__ == '__main__':
         print(f"Model {args.arch} {args.patch_size}x{args.patch_size} built.")
     elif args.arch in torchvision_models.__dict__.keys():
         model = torchvision_models.__dict__[args.arch](num_classes=0)
+        model.fc = nn.Identity()
     else:
         print(f"Architecture {args.arch} non supported")
         sys.exit(1)
     if args.use_cuda:
         model.cuda()
+    # model.eval()
+
+    # # load pretrained weights
+    # if os.path.isfile(args.pretrained_weights):
+    #     state_dict = torch.load(args.pretrained_weights, map_location="cpu")
+    #     if args.checkpoint_key is not None and args.checkpoint_key in state_dict:
+    #         print(f"Take key {args.checkpoint_key} in provided checkpoint dict")
+    #         state_dict = state_dict[args.checkpoint_key]
+    #     # remove `module.` prefix
+    #     state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    #     # remove `backbone.` prefix induced by multicrop wrapper
+    #     state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
+    #     msg = model.load_state_dict(state_dict, strict=False)
+    #     print('Pretrained weights found at {} and loaded with msg: {}'.format(args.pretrained_weights, msg))
+    # elif args.arch == "vit_small" and args.patch_size == 16:
+    #     print("Since no pretrained weights have been provided, we load pretrained DINO weights on Google Landmark v2.")
+    #     model.load_state_dict(torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/dino_vitsmall16_googlelandmark_pretrain/dino_vitsmall16_googlelandmark_pretrain.pth"))
+    # else:
+    #     print("Warning: We use random weights.")
+
+    utils.load_pretrained_weights(model, args.pretrained_weights, args.checkpoint_key, args.arch, args.patch_size)
     model.eval()
-
-    # load pretrained weights
-    if os.path.isfile(args.pretrained_weights):
-        state_dict = torch.load(args.pretrained_weights, map_location="cpu")
-        if args.checkpoint_key is not None and args.checkpoint_key in state_dict:
-            print(f"Take key {args.checkpoint_key} in provided checkpoint dict")
-            state_dict = state_dict[args.checkpoint_key]
-        # remove `module.` prefix
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-        # remove `backbone.` prefix induced by multicrop wrapper
-        state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
-        msg = model.load_state_dict(state_dict, strict=False)
-        print('Pretrained weights found at {} and loaded with msg: {}'.format(args.pretrained_weights, msg))
-    elif args.arch == "vit_small" and args.patch_size == 16:
-        print("Since no pretrained weights have been provided, we load pretrained DINO weights on Google Landmark v2.")
-        model.load_state_dict(torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/dino_vitsmall16_googlelandmark_pretrain/dino_vitsmall16_googlelandmark_pretrain.pth"))
-    else:
-        print("Warning: We use random weights.")
-
+    
     ############################################################################
     # Step 1: extract features
     train_features = extract_features(model, data_loader_train, args.use_cuda, multiscale=args.multiscale)
