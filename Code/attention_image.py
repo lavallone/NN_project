@@ -124,11 +124,13 @@ def compute_attention(image_path, image_size, patch_size, model, threshold):
 
     # It's the output of the last attention layer (without the MLP part)
     attentions = model.get_last_selfattention(img.to(device))
+    print(attentions.shape)
 
     nh = attentions.shape[1] # number of heads
 
     # we keep only the output patch attention
     attentions = attentions[0, :, 0, 1:].reshape(nh, -1)
+    print(attentions.shape)
 
     th_attn = None
     if threshold is not None:
