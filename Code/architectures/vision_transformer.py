@@ -207,28 +207,20 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x):
         x = self.prepare_tokens(x)
-        print(x.shape)
         for blk in self.blocks:
             x = blk(x)
-            print(x.shape)
         x = self.norm(x)
-        print(x.shape)
         x = x[:, 0]
-        print(x.shape)
         return x
 
     def get_last_selfattention(self, x):
-        print(x.shape)
         x = self.prepare_tokens(x)
-        print(x.shape)
         for i, blk in enumerate(self.blocks):
             if i < len(self.blocks) - 1:
                 x = blk(x)
-                print(x.shape)
             else:
                 # return attention of the last block
                 x = blk(x, return_attention=True)
-                print(x.shape)
                 return x
 
     def get_intermediate_layers(self, x, n=1):
