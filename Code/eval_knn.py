@@ -107,6 +107,8 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
             feats = utils.multi_scale(samples, model)
         else:
             feats = model(samples).clone()
+            
+        print(feats.shape)
 
         # init storage feature matrix
         if dist.get_rank() == 0 and features is None:
@@ -140,6 +142,7 @@ def extract_features(model, data_loader, use_cuda=True, multiscale=False):
                 features.index_copy_(0, index_all, torch.cat(output_l))
             else:
                 features.index_copy_(0, index_all.cpu(), torch.cat(output_l).cpu())
+        break
     return features
 
 
