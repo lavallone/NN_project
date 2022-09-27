@@ -202,13 +202,7 @@ if __name__ == '__main__':
     model.to(device)
 
     nh, img, attentions, th_attn = compute_attention(args.image_path, args.image_size, args.patch_size, model, args.threshold)
-    print(len(attentions))
-    print(len(attentions[0]))
-    print(len(attentions[0][0]))
-    print(len(attentions[0][0][0]))
-    print(len(attentions[0][0][0][0]))
-    print(len(attentions[0][0][0][0][0]))
-    
+
     # save attentions heatmaps --> we save "nh" attention map images
     os.makedirs(args.output_dir, exist_ok=True)
     torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True), os.path.join(args.output_dir, "modified_image.png"))

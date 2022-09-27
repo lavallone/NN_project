@@ -213,7 +213,9 @@ class VisionTransformer(nn.Module):
         return x[:, 0]
 
     def get_last_selfattention(self, x):
+        print(x.shape())
         x = self.prepare_tokens(x)
+        print(x.shape())
         for i, blk in enumerate(self.blocks):
             if i < len(self.blocks) - 1:
                 x = blk(x)
