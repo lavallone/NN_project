@@ -138,7 +138,8 @@ if __name__ == '__main__':
         sys.exit(1)
     if args.use_cuda:
         model.cuda()
-    # model.eval()
+        
+    ## I don't why the code didn't use all the pretrained architectures...
 
     # # load pretrained weights
     # if os.path.isfile(args.pretrained_weights):
