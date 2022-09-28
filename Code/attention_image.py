@@ -147,9 +147,7 @@ def compute_attention(image_path, image_size, patch_size, model, threshold):
         th_attn = nn.functional.interpolate(th_attn.unsqueeze(0), scale_factor=args.patch_size, mode="nearest")[0].cpu().numpy()
 
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
-    print(attentions.shape)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=args.patch_size, mode="nearest")[0].cpu().numpy()
-    print(attentions.shape)
     
     return nh, img, attentions, th_attn
 ###-----------------###
